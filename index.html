@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>西双版纳旅行地图</title>
+  <meta name="description" content="西双版纳旅行路线可视化原型">
+  <link rel="stylesheet" href="./assets/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__glow"></div>
+      <header class="sidebar__header">
+        <p class="eyebrow">Tropical Route</p>
+        <h1>西双版纳 4 日地图</h1>
+        <p class="lede" id="tripSummary">正在加载行程数据...</p>
+      </header>
+
+      <section class="day-switcher">
+        <div class="section-title">
+          <span>行程日程</span>
+        </div>
+        <div class="day-pills" id="dayPills"></div>
+      </section>
+
+      <section class="day-overview" id="dayOverview"></section>
+
+      <section class="timeline">
+        <div class="section-title">
+          <span>当天动线</span>
+          <span class="status-pill" id="statusPill">待初始化</span>
+        </div>
+        <div class="timeline__list" id="timelineList"></div>
+      </section>
+    </aside>
+
+    <main class="map-stage">
+      <div class="map-toolbar">
+        <div class="map-toolbar__title">
+          <strong id="activeDayTitle">地图预览</strong>
+          <span id="activeDayMeta">启动本地服务后即可查看路线、景点与美食点位</span>
+        </div>
+      </div>
+
+      <button class="map-corner-toggle" id="foodToggle" type="button">显示美食</button>
+      <div id="mapContainer" class="map-container"></div>
+      <div class="map-overlay-message" id="mapOverlayMessage" hidden></div>
+
+      <aside class="guide-panel" id="guidePanel" hidden>
+        <div class="guide-panel__header">
+          <div>
+            <h2 id="guidePanelTitle">攻略详情</h2>
+            <p id="guidePanelMeta"></p>
+          </div>
+          <button id="guidePanelClose" type="button" class="guide-panel__close">关闭</button>
+        </div>
+        <div class="guide-panel__body" id="guidePanelBody"></div>
+      </aside>
+    </main>
+  </div>
+
+  <template id="timelineItemTemplate">
+    <article class="timeline-card">
+      <div class="timeline-card__order"></div>
+      <div class="timeline-card__body"></div>
+    </article>
+  </template>
+
+  <script src="./assets/vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

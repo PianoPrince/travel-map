@@ -1,0 +1,12 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#F3E8D1"/>
+  <circle cx="192" cy="158" r="116" fill="#E6C48A" fill-opacity="0.65"/>
+  <circle cx="1096" cy="565" r="188" fill="#7CB6A0" fill-opacity="0.48"/>
+  <path d="M0 563C121 497 210 470 341 491C451 509 538 571 664 571C775 571 875 508 972 508C1088 508 1185 566 1280 591V720H0V563Z" fill="#D6B07A"/>
+  <path d="M0 605C106 571 207 549 323 565C428 579 515 637 643 637C768 637 866 568 975 568C1096 568 1189 615 1280 650V720H0V605Z" fill="#4A8B73"/>
+  <rect x="451" y="196" width="378" height="244" rx="34" fill="#FFFBF2" stroke="#C7A36A" stroke-width="8"/>
+  <path d="M514 379L606 290L690 353L739 309L823 379V396H514V379Z" fill="#D6B07A"/>
+  <circle cx="579" cy="271" r="30" fill="#E4C17C"/>
+  <text x="640" y="481" text-anchor="middle" fill="#6D5940" font-size="44" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">暂无图片</text>
+  <text x="640" y="532" text-anchor="middle" fill="#8E7A63" font-size="24" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">后续把真实旅拍放到 assets/images 即可</text>
+</svg>

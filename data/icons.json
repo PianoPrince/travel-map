@@ -1,0 +1,14 @@
+{
+  "default": { "emoji": "🧭", "background": "linear-gradient(135deg, #2f7f69, #255e5d)" },
+  "driving": { "emoji": "🚗", "background": "#2f7f69" },
+  "airport": { "emoji": "✈️", "background": "linear-gradient(135deg, #4b7bec, #3867d6)" },
+  "hotel": { "emoji": "🏨", "background": "linear-gradient(135deg, #9b5de5, #6a4c93)" },
+  "attraction": { "emoji": "🎫", "background": "linear-gradient(135deg, #f4a261, #e76f51)" },
+  "temple": { "emoji": "🛕", "background": "linear-gradient(135deg, #b45f43, #8c3d2a)" },
+  "market": { "emoji": "🏮", "background": "linear-gradient(135deg, #f28482, #e76f51)" },
+  "restaurant": { "emoji": "🍽️", "background": "linear-gradient(135deg, #2a9d8f, #1d6f68)" },
+  "village": { "emoji": "🌾", "background": "linear-gradient(135deg, #84a98c, #52796f)" },
+  "garden": { "emoji": "🌿", "background": "linear-gradient(135deg, #83c5be, #2f7f69)" },
+  "shopping": { "emoji": "🛍️", "background": "linear-gradient(135deg, #e9c46a, #c1843a)" },
+  "massage": { "emoji": "💆", "background": "linear-gradient(135deg, #cdb4db, #9d4edd)" }
+}

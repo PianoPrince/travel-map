@@ -1,0 +1,267 @@
+{
+  "trip": {
+    "id": "xishuangbanna-2026-03",
+    "title": "西双版纳四日行程",
+    "city": "西双版纳傣族自治州景洪市",
+    "date_range": {
+      "start": "2026-03-20",
+      "end": "2026-03-23"
+    },
+    "default_center": [100.803, 22.009],
+    "default_zoom": 11,
+    "primary_transport_mode": "driving",
+    "api_notes": {
+      "provider": "AMap Web Service",
+      "batch_request_limit_hint": "批量请求建议控制在 1 秒最多 3 次，并使用顺序节流。"
+    }
+  },
+  "days": [
+    {
+      "id": "day1",
+      "short_label": "Day 1",
+      "date": "2026-03-20",
+      "title": "抵达与入住",
+      "theme": "机场接驳",
+      "sun_times": {
+        "sunrise": "07:20:45",
+        "sunset": "19:27:49",
+        "dawn": "06:58:32",
+        "dusk": "19:50:03"
+      },
+      "segments": [
+        {
+          "id": "day1-seg-1",
+          "order": 1,
+          "label": "机场 → 酒店",
+          "transport_mode": "driving",
+          "from": "xishuangbanna_airport",
+          "to": "intercontinental_hotel",
+          "time_hint": "抵达后",
+          "guide_text": "HO1052 预计傍晚落地，第一段以平稳接驳和顺利办理入住为主。"
+        }
+      ],
+      "poi_entries": [
+        {
+          "id": "day1-poi-1",
+          "order": 2,
+          "type": "poi",
+          "status": "confirmed",
+          "location_id": "intercontinental_hotel",
+          "title": "入住与休整",
+          "visit_window": "下午 / 傍晚",
+          "guide_text": "到酒店后先办理入住，晚上以轻量活动和休息为主。"
+        }
+      ]
+    },
+    {
+      "id": "day2",
+      "short_label": "Day 2",
+      "date": "2026-03-21",
+      "title": "寺院与夜市线",
+      "theme": "城内景点 + 夜间告庄",
+      "sun_times": {
+        "sunrise": "07:19:49",
+        "sunset": "19:28:10",
+        "dawn": "06:57:36",
+        "dusk": "19:50:23"
+      },
+      "segments": [
+        {
+          "id": "day2-seg-1",
+          "order": 1,
+          "label": "酒店 → 曼听御花园",
+          "transport_mode": "driving",
+          "from": "intercontinental_hotel",
+          "to": "manting_garden",
+          "time_hint": "上午",
+          "guide_text": "第二天从酒店出发，先去曼听御花园，安排相对完整的白天游览。"
+        },
+        {
+          "id": "day2-seg-2",
+          "order": 2,
+          "label": "曼听御花园 → 总佛寺",
+          "transport_mode": "driving",
+          "from": "manting_garden",
+          "to": "general_buddhist_temple",
+          "time_hint": "午前",
+          "guide_text": "两点距离很近，真实出行可根据体力改为步行；地图仍统一按路线缓存渲染。"
+        },
+        {
+          "id": "day2-seg-3",
+          "order": 4,
+          "label": "总佛寺 → 般若寺",
+          "transport_mode": "driving",
+          "from": "general_buddhist_temple",
+          "to": "prajna_temple",
+          "time_hint": "下午",
+          "guide_text": "午后从总佛寺转到般若寺，作为第二段寺院节点。"
+        },
+        {
+          "id": "day2-seg-4",
+          "order": 6,
+          "label": "般若寺 → 曼贺纳景区",
+          "transport_mode": "driving",
+          "from": "prajna_temple",
+          "to": "manhena_scenic",
+          "time_hint": "下午",
+          "guide_text": "从般若寺转场到曼贺纳，补足购物和逛寨子的停留节点。"
+        },
+        {
+          "id": "day2-seg-5",
+          "order": 8,
+          "label": "曼贺纳景区 → 星光夜市",
+          "transport_mode": "driving",
+          "from": "manhena_scenic",
+          "to": "starlight_night_market",
+          "time_hint": "傍晚",
+          "guide_text": "从曼贺纳转到告庄，衔接夜景与夜市时段。"
+        },
+        {
+          "id": "day2-seg-6",
+          "order": 10,
+          "label": "星光夜市 → 酒店",
+          "transport_mode": "driving",
+          "from": "starlight_night_market",
+          "to": "intercontinental_hotel",
+          "time_hint": "夜间返程",
+          "guide_text": "夜市结束后直接回酒店。"
+        }
+      ],
+      "poi_entries": [
+        {
+          "id": "day2-poi-2",
+          "order": 5,
+          "type": "poi",
+          "status": "confirmed",
+          "location_id": "manhena_scenic",
+          "title": "曼贺纳购物点",
+          "visit_window": "下午",
+          "guide_text": "按“曼贺纳景区”主点落位，作为买衣服和逛寨子的中间停留节点。"
+        },
+        {
+          "id": "day2-poi-3",
+          "order": 9,
+          "type": "poi",
+          "status": "confirmed",
+          "location_id": "starlight_night_market",
+          "title": "告庄西双景 & 星光夜市",
+          "visit_window": "傍晚 - 夜间",
+          "guide_text": "主打夜景、逛市集和晚饭，地图以夜市片区为核心聚焦点。"
+        }
+      ]
+    },
+    {
+      "id": "day3",
+      "short_label": "Day 3",
+      "date": "2026-03-22",
+      "title": "植物园远途线",
+      "theme": "长线景点 + 村落节点",
+      "sun_times": {
+        "sunrise": "07:18:53",
+        "sunset": "19:28:30",
+        "dawn": "06:56:39",
+        "dusk": "19:50:44"
+      },
+      "segments": [
+        {
+          "id": "day3-seg-1",
+          "order": 1,
+          "label": "酒店 → 中科院热带植物园",
+          "transport_mode": "driving",
+          "from": "intercontinental_hotel",
+          "to": "botanical_garden",
+          "time_hint": "上午",
+          "guide_text": "第三天行程最长，建议尽早出发，把远途景点放在最前面。"
+        },
+        {
+          "id": "day3-seg-2",
+          "order": 2,
+          "label": "植物园 → 曼远村",
+          "transport_mode": "driving",
+          "from": "botanical_garden",
+          "to": "manyuan_village",
+          "time_hint": "中午前后",
+          "guide_text": "从植物园继续补上村落停留点，作为远途段的第二个核心景点。"
+        },
+        {
+          "id": "day3-seg-3",
+          "order": 4,
+          "label": "曼远村 → 玉鹿庭",
+          "transport_mode": "driving",
+          "from": "manyuan_village",
+          "to": "yuluting_cafe",
+          "time_hint": "下午",
+          "guide_text": "从曼远村转场到玉鹿庭，把它作为下午休息与观景的正式景点。"
+        },
+        {
+          "id": "day3-seg-4",
+          "order": 7,
+          "label": "玉鹿庭 → 酒店",
+          "transport_mode": "driving",
+          "from": "yuluting_cafe",
+          "to": "intercontinental_hotel",
+          "time_hint": "晚间返程",
+          "guide_text": "当天晚饭和按摩仍未完全固定，当前先保留从玉鹿庭直接回酒店的回程线。"
+        }
+      ],
+      "poi_entries": [
+        {
+          "id": "day3-poi-1",
+          "order": 3,
+          "type": "poi",
+          "status": "confirmed",
+          "location_id": "manyuan_village",
+          "title": "曼远村",
+          "visit_window": "中午前后",
+          "guide_text": "已按高德“曼远村”主点落位，可作为村落逛拍和短暂停留点。"
+        },
+        {
+          "id": "day3-poi-2",
+          "order": 5,
+          "type": "poi",
+          "status": "confirmed",
+          "location_id": "yuluting_cafe",
+          "title": "玉鹿庭",
+          "visit_window": "下午",
+          "guide_text": "玉鹿庭作为 Day 3 的正式景点处理，适合作为下午休息与观景节点。"
+        },
+        {
+          "id": "day3-poi-3",
+          "order": 6,
+          "type": "poi",
+          "status": "candidate",
+          "location_id": null,
+          "title": "市区晚饭与按摩",
+          "visit_window": "晚上",
+          "guide_text": "晚饭地点和按摩店暂未固定，先保留为收束节点。"
+        }
+      ]
+    },
+    {
+      "id": "day4",
+      "short_label": "Day 4",
+      "date": "2026-03-23",
+      "title": "返程",
+      "theme": "酒店返机场",
+      "sun_times": {
+        "sunrise": "07:17:57",
+        "sunset": "19:28:51",
+        "dawn": "06:55:43",
+        "dusk": "19:51:05"
+      },
+      "segments": [
+        {
+          "id": "day4-seg-1",
+          "order": 1,
+          "label": "酒店 → 机场",
+          "transport_mode": "driving",
+          "from": "intercontinental_hotel",
+          "to": "xishuangbanna_airport",
+          "time_hint": "出发前",
+          "guide_text": "留足机场安检时间，返程以准时和省心为主。"
+        }
+      ],
+      "poi_entries": []
+    }
+  ]
+}

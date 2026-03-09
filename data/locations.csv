@@ -1,0 +1,27 @@
+﻿id,name,address,lng,lat,category,icon_key,day_tags,region,description,photo,photo_alt,notes
+xishuangbanna_airport,西双版纳嘎洒国际机场,机场公路,100.764783,21.972406,airport,airport,day1|day4,景洪市,抵达与返程起点,./assets/images/西双版纳嘎洒国际机场.png,机场,JHG
+intercontinental_hotel,西双版纳洲际度假酒店,西双版纳旅游度假区二期曼弄枫片区,100.828079,21.976654,hotel,hotel,day1|day2|day3|day4,曼弄枫,全程住宿点,./assets/images/西双版纳洲际度假酒店外部.jpeg,酒店外部,酒店门口上车点后续可再细化
+manting_garden,曼听御花园景区,曼听路35号,100.807593,21.991168,attraction,attraction,day2,景洪市,版纳经典景点 适合白天慢逛,./assets/images/曼听御花园.png,曼听御花园,可与总佛寺联动
+general_buddhist_temple,西双版纳总佛寺,坝吉路18号,100.806173,21.989015,temple,temple,day2,景洪市,离曼听御花园很近的寺庙点位,./assets/images/总佛寺.png,总佛寺,短距离可步行
+prajna_temple,般若寺,西双版纳州度假区,100.783828,21.966278,temple,temple,day2,景洪市,第二天后半程寺庙点位,./assets/images/般若寺.png,般若寺,景区时段待确认
+starlight_night_market,湄公河·星光夜市,告庄西双十景区 大金塔寺南侧,100.820693,22.005090,market,market,day2,告庄西双景,夜景与晚间逛吃主场,./assets/images/星光夜市.png,星光夜市,可与拍夜景合并
+botanical_garden,中国科学院西双版纳热带植物园,勐仑镇213国道,101.273887,21.917224,garden,garden,day3,勐仑镇,第三天核心远途景点,./assets/images/中国科学院西双版纳热带植物园.png,中国科学院西双版纳热带植物园,车程较长 建议提早出发
+manhena_scenic,曼贺纳景区,榕林时光二期东南侧120米,100.823265,21.974676,shopping,shopping,day2,曼弄枫,适合逛寨子与买衣服裙子的节点,./assets/images/曼贺纳.png,曼贺纳,按景区主点落位
+manyuan_village,曼远村,勐罕镇曼远村,100.959831,21.914715,village,village,day3,勐罕镇,第三天原始路线里的村落点位,./assets/images/曼远村.png,曼远村,景区性质点位
+yuluting_cafe,玉鹿庭·摆醍耐雨林树屋咖啡馆,江北街道曼外村委会阿克老寨,100.873596,21.939667,attraction,attraction,day3,江北街道,第三天下午可停留的咖啡馆/观景节点,./assets/images/玉鹿庭雨林江景villa.png,玉鹿庭,按景点停留点落位
+chunwuli_restaurant,春武里,告庄西双景湄公河人家A栋1层109号,100.823210,22.006372,restaurant,restaurant,day2,告庄西双景,告庄附近可选午餐或夜宵点,./assets/images/春武里.png,春武里,已落坐标 可作为候选餐厅
+chunmei_restaurant,椿楣,告庄西双景夜市赶摆街3-1801,100.821937,22.005871,restaurant,restaurant,day2,告庄西双景,夜市片区候选餐厅,./assets/images/椿楣.png,椿楣,适合并入告庄段
+lao_puer_bean_soup,老普洱豆汤饭,旅游区一号勐捧路 明珠小区门口,100.798063,21.997972,restaurant,restaurant,day2|day3,景洪市,市区候选餐饮点,./assets/images/老普洱豆汤.png,老普洱豆汤,早餐或简餐备选
+wantai_lao_ice_coffee,婉泰老挝冰咖啡(告庄一店),告庄西双景景罕寨11-b103号,100.818563,22.009721,restaurant,restaurant,day2|day3,告庄西双景,适合夜市附近补咖啡或轻食,./assets/images/婉泰老挝冰咖啡.png,婉泰老挝冰咖啡,来自 travel_route.md 的补充美食点
+mamalao_sticky_rice,MaMaLao老挝烤肉糯米饭,允景洪街道办事白象湖社区居委会景洪市白象湖停车场棚架房2-3号,100.793497,22.011757,restaurant,restaurant,day2|day3,景洪市区,适合补充为市区早餐或简餐候选,./assets/images/老挝烤肉糯米饭.png,老挝烤肉糯米饭,来自 travel_route.md 的补充美食点
+menghui_mabang_night_market,梦回马帮·云南马帮菜(星光夜市店),告庄西双景澜公河人家101号星光夜市9号门,100.823226,22.006123,restaurant,restaurant,day2,告庄西双景,夜市片区的正餐候选,./assets/images/梦回马帮星光夜市店.png,梦回马帮星光夜市店,来自 travel_route.md 的补充美食点
+menghui_mabang_golden_pagoda,梦回马帮·马帮菜(大金塔店),大金塔寺旁边景兰寨6栋110号,100.818728,22.007514,restaurant,restaurant,day2,告庄西双景,大金塔附近可步行到达的正餐候选,./assets/images/梦回马帮大金塔店.png,梦回马帮大金塔店,来自 travel_route.md 的补充美食点
+menghui_mabang_aegean,梦回马帮·云南马帮菜(爱琴海店),勐泐大道55号西双版纳爱琴海购物中心F4层,100.797725,21.998425,restaurant,restaurant,day3,景洪市区,适合作为返程前的商场晚餐候选,./assets/images/梦回马帮爱琴海店.png,梦回马帮爱琴海店,来自 travel_route.md 的补充美食点
+wusong_goose_aegean,武松醉鹅(爱琴海店),爱琴海购物中心4层,100.797805,21.998224,restaurant,restaurant,day3,景洪市区,市区晚饭的明确候选点,./assets/images/武松醉鹅爱琴海店.png,武松醉鹅爱琴海店,来自 travel_route.md 的补充美食点
+xiaoyu_peacock_feast,小玉家·傣族孔雀宴手抓饭,告庄西双景景岱寨B8栋102,100.814150,22.009932,restaurant,restaurant,day2,告庄西双景,告庄片区适合体验傣味手抓饭,./assets/images/小玉家孔雀宴手抓饭.png,小玉家孔雀宴手抓饭,来自 travel_route.md 的补充美食点
+yubo_breakfast,玉波早点店,嘎兰中路92号,100.799974,22.012087,restaurant,restaurant,day2|day3,景洪市区,市区早餐候选,./assets/images/玉波早点店.png,玉波早点店,来自 travel_route.md 的补充美食点
+laocang_rice_noodle,老仓醋米线(嘎兰店),嘎兰南路附近,100.801097,22.004968,restaurant,restaurant,day2|day3,景洪市区,常规早餐或简餐候选,./assets/images/老仓醋米线.png,老仓醋米线,来自 travel_route.md 的补充美食点
+laoyoutiao_small_pot,老油条小锅米线面食馆,观礼巷与嘎兰中路交叉口东南20米,100.799871,22.012602,restaurant,restaurant,day2|day3,景洪市区,早餐路线里的小锅米线候选,./assets/images/老油条小锅米线.png,老油条小锅米线,来自 travel_route.md 的补充美食点
+xiaoyuxiang_bbq,小玉香家傣味烧烤(曼斗村店),曼泐路198号,100.815095,22.011086,restaurant,restaurant,day2|day3,景洪市区,适合作为傣味烧烤候选,./assets/images/小玉香家傣味烧烤.png,小玉香家傣味烧烤,来自 travel_route.md 的补充美食点
+yanghelin_grill_fish,杨合林烧烤,勐海路97号,100.783212,21.989650,restaurant,restaurant,day2|day3,景洪市区,按最接近 query 结果补入的烤鱼/烧烤候选,./assets/images/杨合林烧烤.png,杨合林烧烤,原始文档写作“杨合林阿兰烤鱼”，当前按最接近结果落点
+menghun_beef_rice_noodle,伍号勐混牛撒撇米线(告庄孔雀楼店),江北告庄西双景景岱寨A1-103号,100.812231,22.009182,restaurant,restaurant,day2|day3,告庄西双景,补入 travel_route.md 中提到的勐混牛撒撇米线候选,./assets/images/勐混牛撒撇米线.png,勐混牛撒撇米线,当前按最接近且适合行程的告庄门店落点
