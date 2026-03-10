@@ -4,23 +4,16 @@ import csv
 import json
 from pathlib import Path
 
-try:
-    import jsonschema  # type: ignore
-except Exception:  # pragma: no cover
-    jsonschema = None
-
 
 ROOT = Path(__file__).resolve().parent.parent
 LOCATIONS_PATH = ROOT / "data" / "locations.csv"
 ITINERARY_PATH = ROOT / "data" / "itinerary.json"
-SCHEMA_PATH = ROOT / "data" / "schema.json"
 ROUTE_CACHE_PATH = ROOT / "data" / "route_cache.json"
 
 
 def load_locations() -> dict[str, dict]:
     with LOCATIONS_PATH.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle)
-        rows = list(reader)
+        rows = list(csv.DictReader(handle))
 
     seen: set[str] = set()
     locations: dict[str, dict] = {}
@@ -45,13 +38,6 @@ def load_locations() -> dict[str, dict]:
     return locations
 
 
-def validate_schema(payload: dict) -> None:
-    if jsonschema is None:
-        return
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    jsonschema.validate(payload, schema)
-
-
 def validate_links(payload: dict, locations: dict[str, dict]) -> None:
     for day in payload.get("days", []):
         for segment in day.get("segments", []):
@@ -64,22 +50,12 @@ def validate_links(payload: dict, locations: dict[str, dict]) -> None:
             location_id = entry.get("location_id")
             if location_id and location_id not in locations:
                 raise ValueError(f"{day['id']} 的 {entry['id']} 引用了缺失地点: {location_id}")
-            for option in entry.get("candidate_options", []):
-                option_location_id = option.get("location_id")
-                if option_location_id and option_location_id not in locations:
-                    raise ValueError(
-                        f"{day['id']} 的 {entry['id']} 候选项引用了缺失地点: {option_location_id}"
-                    )
 
 
 def validate_order(payload: dict) -> None:
     for day in payload.get("days", []):
-        orders = []
-        for segment in day.get("segments", []):
-            orders.append(segment["order"])
-        for entry in day.get("poi_entries", []):
-            orders.append(entry["order"])
-
+        orders = [segment["order"] for segment in day.get("segments", [])]
+        orders.extend(entry["order"] for entry in day.get("poi_entries", []))
         if len(orders) != len(set(orders)):
             raise ValueError(f"{day['id']} 的 order 存在重复")
 
@@ -89,21 +65,20 @@ def validate_route_cache(payload: dict) -> None:
         raise ValueError("缺少 data/route_cache.json")
 
     route_cache = json.loads(ROUTE_CACHE_PATH.read_text(encoding="utf-8"))
-    if "routes" not in route_cache or not isinstance(route_cache["routes"], dict):
+    routes = route_cache.get("routes")
+    if not isinstance(routes, dict):
         raise ValueError("route_cache.json 缺少 routes 对象")
 
     for day in payload.get("days", []):
         for segment in day.get("segments", []):
-            segment_id = segment["id"]
-            if segment_id not in route_cache["routes"]:
-                raise ValueError(f"route_cache.json 缺少 segment 缓存: {segment_id}")
+            if segment["id"] not in routes:
+                raise ValueError(f"route_cache.json 缺少 segment 缓存: {segment['id']}")
 
 
 def main() -> int:
     try:
         locations = load_locations()
         itinerary = json.loads(ITINERARY_PATH.read_text(encoding="utf-8"))
-        validate_schema(itinerary)
         validate_links(itinerary, locations)
         validate_order(itinerary)
         validate_route_cache(itinerary)

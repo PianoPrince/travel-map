@@ -1,11 +1,10 @@
-import { HIGHLIGHT_ROUTE_COLOR, STATIC_ROUTE_COLOR } from "./constants.js";
 import { formatDistance, formatDuration, toLeafletLatLng } from "./formatters.js";
 
+const STATIC_ROUTE_COLOR = "#2f7f69";
+const HIGHLIGHT_ROUTE_COLOR = "#ff7a18";
+
 function midpoint(path) {
-  if (path.length === 0) {
-    return null;
-  }
-  return path[Math.floor(path.length / 2)];
+  return path.length === 0 ? null : path[Math.floor(path.length / 2)];
 }
 
 function toLeafletPath(path = []) {
@@ -18,8 +17,7 @@ function endAngle(path) {
   }
   const [prevLat, prevLng] = path[path.length - 2];
   const [endLat, endLng] = path[path.length - 1];
-  const radians = Math.atan2(endLat - prevLat, endLng - prevLng);
-  return (radians * 180) / Math.PI;
+  return (Math.atan2(endLat - prevLat, endLng - prevLng) * 180) / Math.PI;
 }
 
 function ensurePane(map, name, zIndex) {
@@ -30,14 +28,11 @@ function ensurePane(map, name, zIndex) {
 }
 
 export function createRouteLayer(map, routeCache) {
-  let overlays = [];
   let animationFrameId = null;
   const routesBySegmentId = new Map(Object.entries(routeCache?.routes ?? {}));
-
   const basePane = ensurePane(map, "route-base-pane", 420);
   const labelPane = ensurePane(map, "route-label-pane", 430);
   const highlightPane = ensurePane(map, "route-highlight-pane", 650);
-
   const baseGroup = window.L.layerGroup().addTo(map);
   const highlightGroup = window.L.layerGroup().addTo(map);
 
@@ -52,7 +47,6 @@ export function createRouteLayer(map, routeCache) {
     stopDashAnimation();
     baseGroup.clearLayers();
     highlightGroup.clearLayers();
-    overlays = [];
   }
 
   function startDashAnimation(polyline) {
@@ -67,8 +61,7 @@ export function createRouteLayer(map, routeCache) {
       }
 
       if (lastFrame !== null) {
-        const delta = timestamp - lastFrame;
-        dashOffset -= delta * 0.06;
+        dashOffset -= (timestamp - lastFrame) * 0.06;
         pathElement.style.strokeDashoffset = `${dashOffset}`;
       }
 
@@ -104,12 +97,11 @@ export function createRouteLayer(map, routeCache) {
       return null;
     }
 
-    const angle = endAngle(path);
     return window.L.marker(end, {
       pane: highlightPane,
       icon: window.L.divIcon({
         className: "route-arrow-icon",
-        html: `<div class="route-arrow" style="transform: rotate(${angle}deg)">➜</div>`,
+        html: `<div class="route-arrow" style="transform: rotate(${endAngle(path)}deg)">➜</div>`,
         iconSize: null,
         iconAnchor: [0, 0],
       }),
@@ -118,36 +110,9 @@ export function createRouteLayer(map, routeCache) {
     });
   }
 
-  function createBaseStroke(path, isHighlighted) {
-    return window.L.polyline(path, {
-      pane: basePane,
-      color: STATIC_ROUTE_COLOR,
-      opacity: isHighlighted ? 0.28 : 0.65,
-      weight: isHighlighted ? 10 : 7,
-      lineJoin: "round",
-      lineCap: "round",
-      interactive: false,
-      className: `route-line-base${isHighlighted ? " route-line-base--active" : ""}`,
-    });
-  }
-
-  function createHighlightStroke(path) {
-    return window.L.polyline(path, {
-      pane: highlightPane,
-      color: HIGHLIGHT_ROUTE_COLOR,
-      opacity: 1,
-      weight: 6,
-      dashArray: "14 12",
-      lineJoin: "round",
-      lineCap: "round",
-      interactive: false,
-      className: "route-line-dash route-line-dash--highlight",
-    });
-  }
-
   function render(day, locationsById, highlightedSegmentId = null) {
     clear();
-    const nextOverlays = [];
+    const overlays = [];
     const missingSegments = [];
     let highlightedDashLayer = null;
 
@@ -155,11 +120,7 @@ export function createRouteLayer(map, routeCache) {
       const from = locationsById.get(segment.from);
       const to = locationsById.get(segment.to);
       if (!from || !to) {
-        missingSegments.push({
-          segmentId: segment.id,
-          label: segment.label,
-          error: "起点或终点缺少坐标数据",
-        });
+        missingSegments.push({ segmentId: segment.id, label: segment.label, error: "起点或终点缺少坐标数据" });
         continue;
       }
 
@@ -175,31 +136,47 @@ export function createRouteLayer(map, routeCache) {
 
       const path = toLeafletPath(cachedRoute.path || []);
       if (path.length === 0) {
-        missingSegments.push({
-          segmentId: segment.id,
-          label: segment.label,
-          error: "缓存缺少路线坐标",
-        });
+        missingSegments.push({ segmentId: segment.id, label: segment.label, error: "缓存缺少路线坐标" });
         continue;
       }
 
       const isHighlighted = segment.id === highlightedSegmentId;
-      const baseStroke = createBaseStroke(path, isHighlighted);
+      const baseStroke = window.L.polyline(path, {
+        pane: basePane,
+        color: STATIC_ROUTE_COLOR,
+        opacity: isHighlighted ? 0.28 : 0.65,
+        weight: isHighlighted ? 10 : 7,
+        lineJoin: "round",
+        lineCap: "round",
+        interactive: false,
+        className: `route-line-base${isHighlighted ? " route-line-base--active" : ""}`,
+      });
       const label = buildLabel(cachedRoute, path, isHighlighted);
+
       baseGroup.addLayer(baseStroke);
       if (label) {
         (isHighlighted ? highlightGroup : baseGroup).addLayer(label);
       }
-      nextOverlays.push(baseStroke, label);
+      overlays.push(baseStroke, label);
 
       if (isHighlighted) {
-        const dashStroke = createHighlightStroke(path);
+        const dashStroke = window.L.polyline(path, {
+          pane: highlightPane,
+          color: HIGHLIGHT_ROUTE_COLOR,
+          opacity: 1,
+          weight: 6,
+          dashArray: "14 12",
+          lineJoin: "round",
+          lineCap: "round",
+          interactive: false,
+          className: "route-line-dash route-line-dash--highlight",
+        });
         const arrow = buildEndpointArrow(path);
         highlightGroup.addLayer(dashStroke);
         if (arrow) {
           highlightGroup.addLayer(arrow);
         }
-        nextOverlays.push(dashStroke, arrow);
+        overlays.push(dashStroke, arrow);
         highlightedDashLayer = dashStroke;
       }
     }
@@ -208,12 +185,8 @@ export function createRouteLayer(map, routeCache) {
       startDashAnimation(highlightedDashLayer);
     }
 
-    overlays = nextOverlays.filter(Boolean);
-    return { overlays, missingSegments };
+    return { overlays: overlays.filter(Boolean), missingSegments };
   }
 
-  return {
-    clear,
-    render,
-  };
+  return { clear, render };
 }

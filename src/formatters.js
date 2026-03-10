@@ -1,4 +1,19 @@
-import { CATEGORY_LABELS, PLACEHOLDER_IMAGE } from "./constants.js";
+const PLACEHOLDER_IMAGE = "./assets/placeholders/no-photo.svg";
+const CATEGORY_LABELS = {
+  airport: "机场",
+  hotel: "酒店",
+  attraction: "景点",
+  temple: "寺院",
+  market: "夜市",
+  restaurant: "美食",
+  village: "村落",
+  garden: "园区",
+  shopping: "购物",
+  massage: "放松",
+};
+
+export const ROUTE_CACHE_NOTICE =
+  "当前页面只读取本地 route_cache.json。若缺少路线，请先运行预取脚本生成缓存。";
 
 export function escapeHtml(value = "") {
   return String(value)
@@ -17,11 +32,8 @@ export function formatDistance(meters = 0) {
 export function formatDuration(seconds = 0) {
   const safe = Math.max(0, Number(seconds) || 0);
   const hours = Math.floor(safe / 3600);
-  const minutes = Math.round((safe % 3600) / 60);
-  if (hours > 0) {
-    return `${hours} 小时 ${Math.max(1, minutes)} 分钟`;
-  }
-  return `${Math.max(1, minutes)} 分钟`;
+  const minutes = Math.max(1, Math.round((safe % 3600) / 60));
+  return hours > 0 ? `${hours} 小时 ${minutes} 分钟` : `${minutes} 分钟`;
 }
 
 export function formatTimeToMinute(value = "") {
@@ -45,9 +57,7 @@ export function getPhotoUrl(value) {
 }
 
 export function summarizeDay(day) {
-  const routeCount = day.segments.length;
-  const poiCount = day.poi_entries.length;
-  return `${routeCount} 段路线，${poiCount} 个打卡或候选点`;
+  return `${day.segments.length} 段路线，${day.poi_entries.length} 个打卡点`;
 }
 
 export function buildLocationMeta(location) {
@@ -63,8 +73,5 @@ export function toLeafletLatLng([lng, lat] = []) {
 
 export function truncateText(text = "", maxLength = 88) {
   const safe = String(text).trim();
-  if (safe.length <= maxLength) {
-    return safe;
-  }
-  return `${safe.slice(0, maxLength).trim()}...`;
+  return safe.length <= maxLength ? safe : `${safe.slice(0, maxLength).trim()}...`;
 }

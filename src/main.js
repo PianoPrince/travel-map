@@ -1,17 +1,16 @@
-import { ROUTE_CACHE_NOTICE } from "./constants.js";
 import { loadTripData } from "./data-loader.js";
-import { buildLocationMeta, escapeHtml, formatTimeToMinute, truncateText } from "./formatters.js";
-import { renderGuideBody, buildGuidePreview } from "./guide-renderer.js";
-import { createItineraryStore } from "./itinerary-store.js";
+import {
+  buildLocationMeta,
+  escapeHtml,
+  formatMultilineText,
+  formatTimeToMinute,
+  ROUTE_CACHE_NOTICE,
+  summarizeDay,
+  truncateText,
+} from "./formatters.js";
 import { createMarkerLayer } from "./marker-layer.js";
 import { createRouteLayer } from "./route-layer.js";
-import {
-  attachMapControls,
-  clearMapMessage,
-  createMap,
-  fitMapToOverlays,
-  setMapMessage,
-} from "./map-view.js";
+import { attachMapControls, clearMapMessage, createMap, fitMapToOverlays, setMapMessage } from "./map-view.js";
 
 const refs = {
   tripSummary: document.getElementById("tripSummary"),
@@ -32,13 +31,14 @@ const refs = {
   guidePanelBody: document.getElementById("guidePanelBody"),
 };
 
-let store = null;
+let itinerary = null;
+let activeDayId = null;
+let locationsById = null;
+let icons = null;
 let map = null;
 let markerLayer = null;
 let foodLayer = null;
 let routeLayer = null;
-let locationsById = null;
-let icons = null;
 
 const state = {
   showFoods: false,
@@ -51,46 +51,59 @@ function setStatus(text, mode = "warn") {
   refs.statusPill.className = `status-pill status-pill--${mode}`;
 }
 
+function getDay(dayId = activeDayId) {
+  return itinerary?.days.find((day) => day.id === dayId) ?? null;
+}
+
+function buildTimeline(day) {
+  const routeEntries = day.segments.map((segment) => ({ ...segment, entry_type: "route" }));
+  const poiEntries = day.poi_entries.map((entry) => ({ ...entry, entry_type: "poi" }));
+  return [...routeEntries, ...poiEntries].sort((left, right) => left.order - right.order);
+}
+
+function buildDayView(dayId = activeDayId) {
+  const day = getDay(dayId);
+  if (!day) {
+    return null;
+  }
+
+  const resolvedPoints = new Map();
+  for (const segment of day.segments) {
+    [segment.from, segment.to].forEach((locationId) => {
+      if (locationId && locationsById.has(locationId)) {
+        resolvedPoints.set(locationId, locationsById.get(locationId));
+      }
+    });
+  }
+
+  for (const entry of day.poi_entries) {
+    if (entry.location_id && locationsById.has(entry.location_id)) {
+      resolvedPoints.set(entry.location_id, locationsById.get(entry.location_id));
+    }
+  }
+
+  return {
+    day,
+    timeline: buildTimeline(day),
+    resolvedPoints: [...resolvedPoints.values()],
+    summary: summarizeDay(day),
+  };
+}
+
+function buildGuidePreview(entry) {
+  return String(entry.guide_text || "").trim();
+}
+
+function renderGuideBody(entry) {
+  return `<p>${formatMultilineText(entry.guide_text || "暂无攻略说明。")}</p>`;
+}
+
 function closeGuidePanel() {
   refs.guidePanel.hidden = true;
   refs.guidePanelTitle.textContent = "";
   refs.guidePanelMeta.textContent = "";
   refs.guidePanelBody.innerHTML = "";
   state.openGuideId = null;
-}
-
-function renderDayPills() {
-  refs.dayPills.innerHTML = "";
-  for (const day of store.itinerary.days) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `day-pill${day.id === store.activeDayId ? " is-active" : ""}`;
-    button.textContent = day.short_label;
-    button.addEventListener("click", async () => {
-      store.setActiveDay(day.id);
-      state.highlightedSegmentId = null;
-      closeGuidePanel();
-      renderDayPills();
-      await renderActiveDay();
-    });
-    refs.dayPills.appendChild(button);
-  }
-}
-
-function renderOverview(dayView) {
-  const { day } = dayView;
-  refs.tripSummary.textContent =
-    `${store.itinerary.trip.city} · ${store.itinerary.trip.date_range.start} 至 ${store.itinerary.trip.date_range.end}`;
-  refs.dayOverview.innerHTML = `
-    <article class="day-overview-card">
-      <h2>${escapeHtml(day.title)}</h2>
-      <p>${escapeHtml(day.theme)} · ${escapeHtml(dayView.summary)}</p>
-      <div class="meta-grid meta-grid--two">
-        <div class="meta-chip">日出 ${escapeHtml(formatTimeToMinute(day.sun_times.sunrise))}</div>
-        <div class="meta-chip">日落 ${escapeHtml(formatTimeToMinute(day.sun_times.sunset))}</div>
-      </div>
-    </article>
-  `;
 }
 
 function buildGuideMeta(entry, location) {
@@ -118,13 +131,7 @@ function buildFallbackGuideEntry(location, dayView, mode = "core") {
 
 function resolveGuideEntryForLocation(dayView, location, mode = "core") {
   const matchedPoi = dayView.day.poi_entries.find((entry) => entry.location_id === location.id);
-  if (matchedPoi) {
-    return {
-      ...matchedPoi,
-      entry_type: "poi",
-    };
-  }
-  return buildFallbackGuideEntry(location, dayView, mode);
+  return matchedPoi ? { ...matchedPoi, entry_type: "poi" } : buildFallbackGuideEntry(location, dayView, mode);
 }
 
 function openGuidePanel(entry) {
@@ -144,12 +151,46 @@ function toggleGuidePanel(entry) {
   openGuidePanel(entry);
 }
 
+function renderDayPills() {
+  refs.dayPills.innerHTML = "";
+  for (const day of itinerary.days) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `day-pill${day.id === activeDayId ? " is-active" : ""}`;
+    button.textContent = day.short_label;
+    button.addEventListener("click", async () => {
+      activeDayId = day.id;
+      state.highlightedSegmentId = null;
+      closeGuidePanel();
+      renderDayPills();
+      await renderActiveDay();
+    });
+    refs.dayPills.appendChild(button);
+  }
+}
+
+function renderOverview(dayView) {
+  refs.tripSummary.textContent =
+    `${itinerary.trip.city} · ${itinerary.trip.date_range.start} 至 ${itinerary.trip.date_range.end}`;
+  refs.dayOverview.innerHTML = `
+    <article class="day-overview-card">
+      <h2>${escapeHtml(dayView.day.title)}</h2>
+      <p>${escapeHtml(dayView.day.theme)} · ${escapeHtml(dayView.summary)}</p>
+      <div class="meta-grid">
+        <div class="meta-chip">日出 ${escapeHtml(formatTimeToMinute(dayView.day.sun_times.sunrise))}</div>
+        <div class="meta-chip">日落 ${escapeHtml(formatTimeToMinute(dayView.day.sun_times.sunset))}</div>
+      </div>
+    </article>
+  `;
+}
+
 function createTimelineCard(entry) {
   const node = refs.timelineItemTemplate.content.firstElementChild.cloneNode(true);
-  node.querySelector(".timeline-card__order").textContent = entry.order;
   const body = node.querySelector(".timeline-card__body");
+  node.querySelector(".timeline-card__order").textContent = entry.order;
+
   const location = entry.location_id ? locationsById.get(entry.location_id) : null;
-  const preview = truncateText(buildGuidePreview(entry), 96);
+  const preview = truncateText(buildGuidePreview(entry), 96) || "暂无补充说明。";
 
   if (entry.entry_type === "route") {
     const from = locationsById.get(entry.from);
@@ -158,7 +199,7 @@ function createTimelineCard(entry) {
     body.innerHTML = `
       <h3>${escapeHtml(entry.label)}</h3>
       <p>${escapeHtml(from?.name || entry.from)} → ${escapeHtml(to?.name || entry.to)}</p>
-      <p class="timeline-card__excerpt">${escapeHtml(preview || "暂无补充说明。")}</p>
+      <p class="timeline-card__excerpt">${escapeHtml(preview)}</p>
       <div class="timeline-card__actions">
         <button type="button" class="action-chip" data-location-id="${escapeHtml(entry.to)}">定位终点</button>
         <button type="button" class="action-chip${isHighlighted ? " action-chip--active" : ""}" data-route-id="${escapeHtml(entry.id)}">${isHighlighted ? "取消高亮" : "高亮动线"}</button>
@@ -167,13 +208,10 @@ function createTimelineCard(entry) {
     return node;
   }
 
-  const locationLabel = location
-    ? `${location.name} · ${buildLocationMeta(location)}`
-    : "待确认地点";
   body.innerHTML = `
     <h3>${escapeHtml(entry.title)}</h3>
-    <p>${escapeHtml(locationLabel)}</p>
-    <p class="timeline-card__excerpt">${escapeHtml(preview || "暂无补充说明。")}</p>
+    <p>${escapeHtml(location ? `${location.name} · ${buildLocationMeta(location)}` : "待确认地点")}</p>
+    <p class="timeline-card__excerpt">${escapeHtml(preview)}</p>
     <div class="timeline-card__actions">
       ${location ? `<button type="button" class="action-chip" data-location-id="${escapeHtml(location.id)}">地图定位</button>` : ""}
     </div>
@@ -207,26 +245,18 @@ function bindTimelineActions(dayView) {
 
 function renderTimeline(dayView) {
   refs.timelineList.innerHTML = "";
-  for (const entry of dayView.timeline) {
-    refs.timelineList.appendChild(createTimelineCard(entry));
-  }
+  dayView.timeline.forEach((entry) => refs.timelineList.appendChild(createTimelineCard(entry)));
   bindTimelineActions(dayView);
 }
 
 function buildFoodLocations(dayView) {
   const resolvedIds = new Set(dayView.resolvedPoints.map((item) => item.id));
-  return [...locationsById.values()].filter((location) => (
-    location.category === "restaurant" && !resolvedIds.has(location.id)
-  ));
+  return [...locationsById.values()].filter((location) => location.category === "restaurant" && !resolvedIds.has(location.id));
 }
 
 function renderMap(dayView) {
   if (!map) {
-    setMapMessage(
-      refs.mapContainer,
-      refs.mapOverlayMessage,
-      "<strong>地图未初始化</strong><br>Leaflet 实例尚未创建，请刷新页面。",
-    );
+    setMapMessage(refs.mapContainer, refs.mapOverlayMessage, "<strong>地图未初始化</strong><br>Leaflet 实例尚未创建，请刷新页面。");
     return { overlays: [], missingSegments: [] };
   }
 
@@ -240,7 +270,6 @@ function renderMap(dayView) {
         subtitle: `${dayView.day.title} · ${buildLocationMeta(location)}`,
         guideText: guideEntry.guide_text || location.description || location.notes,
         badges: [guideEntry.visit_window].filter(Boolean),
-        guideEntry,
         guideToggle: {
           locationId: location.id,
           mode: "core",
@@ -250,37 +279,33 @@ function renderMap(dayView) {
     },
   });
 
-  let foodMarkers = [];
-  if (state.showFoods) {
-    foodMarkers = foodLayer.render(buildFoodLocations(dayView), {
-      markerClass: "travel-marker-icon--food",
-      getMarkerContext: (location) => {
-        const guideEntry = resolveGuideEntryForLocation(dayView, location, "food");
-        return {
-          title: location.name,
-          subtitle: `美食补充 · ${buildLocationMeta(location)}`,
-          guideText: guideEntry.guide_text || location.description || location.notes,
-          badges: [guideEntry.visit_window].filter(Boolean),
-          guideEntry,
-          guideToggle: {
-            locationId: location.id,
-            mode: "food",
-            label: state.openGuideId === guideEntry.id ? "隐藏攻略" : "查看攻略",
-          },
-        };
-      },
-    });
-  } else {
-    foodLayer.clear();
-  }
+  const foodMarkers = state.showFoods
+    ? foodLayer.render(buildFoodLocations(dayView), {
+        markerClass: "travel-marker-icon--food",
+        getMarkerContext: (location) => {
+          const guideEntry = resolveGuideEntryForLocation(dayView, location, "food");
+          return {
+            title: location.name,
+            subtitle: `美食补充 · ${buildLocationMeta(location)}`,
+            guideText: guideEntry.guide_text || location.description || location.notes,
+            badges: [guideEntry.visit_window].filter(Boolean),
+            guideToggle: {
+              locationId: location.id,
+              mode: "food",
+              label: state.openGuideId === guideEntry.id ? "隐藏攻略" : "查看攻略",
+            },
+          };
+        },
+      })
+    : (foodLayer.clear(), []);
 
   const result = routeLayer.render(dayView.day, locationsById, state.highlightedSegmentId);
-  fitMapToOverlays(map, [...coreMarkers, ...foodMarkers, ...result.overlays], store.itinerary.trip);
+  fitMapToOverlays(map, [...coreMarkers, ...foodMarkers, ...result.overlays], itinerary.trip);
   return result;
 }
 
 async function renderActiveDay() {
-  const dayView = store.buildDayView();
+  const dayView = buildDayView();
   if (!dayView) {
     return;
   }
@@ -312,31 +337,20 @@ async function renderActiveDay() {
   }
 }
 
-function initMap(trip, routeCache) {
-  map = createMap(refs.mapContainer, trip);
-  attachMapControls(map);
-  markerLayer = createMarkerLayer(map, icons);
-  foodLayer = createMarkerLayer(map, icons);
-  routeLayer = createRouteLayer(map, routeCache);
-}
-
 async function init() {
   refs.mapContainer.addEventListener("click", async (event) => {
     const trigger = event.target.closest("[data-guide-toggle]");
-    if (!trigger || !store) {
+    if (!trigger) {
       return;
     }
 
-    const dayView = store.buildDayView();
-    const locationId = trigger.dataset.locationId;
-    const mode = trigger.dataset.guideMode || "core";
-    const location = locationsById.get(locationId);
-    if (!location || !dayView) {
+    const dayView = buildDayView();
+    const location = locationsById.get(trigger.dataset.locationId);
+    if (!dayView || !location) {
       return;
     }
 
-    const entry = resolveGuideEntryForLocation(dayView, location, mode);
-    toggleGuidePanel(entry);
+    toggleGuidePanel(resolveGuideEntryForLocation(dayView, location, trigger.dataset.guideMode || "core"));
     await renderActiveDay();
   });
 
@@ -345,17 +359,21 @@ async function init() {
     await renderActiveDay();
   });
 
-  refs.guidePanelClose.addEventListener("click", () => {
-    closeGuidePanel();
-  });
+  refs.guidePanelClose.addEventListener("click", () => closeGuidePanel());
 
   try {
     const data = await loadTripData();
+    itinerary = data.itinerary;
+    activeDayId = itinerary.days[0]?.id ?? null;
     locationsById = data.locationsById;
     icons = data.icons;
-    store = createItineraryStore(data.itinerary, locationsById);
 
-    initMap(data.itinerary.trip, data.routeCache);
+    map = createMap(refs.mapContainer, itinerary.trip);
+    attachMapControls(map);
+    markerLayer = createMarkerLayer(map, icons);
+    foodLayer = createMarkerLayer(map, icons);
+    routeLayer = createRouteLayer(map, data.routeCache);
+
     renderDayPills();
     await renderActiveDay();
   } catch (error) {

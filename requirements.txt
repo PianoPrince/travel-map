@@ -1,1 +1,1 @@
-jsonschema>=4.23,<5
+# No third-party Python dependencies required for the current toolchain.

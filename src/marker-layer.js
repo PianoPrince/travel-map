@@ -1,32 +1,68 @@
-import { buildInfoWindowHtml } from "./info-panel.js";
-import { getCategoryLabel, toLeafletLatLng } from "./formatters.js";
+import {
+  buildLocationMeta,
+  escapeHtml,
+  formatMultilineText,
+  getCategoryLabel,
+  getPhotoUrl,
+  toLeafletLatLng,
+} from "./formatters.js";
+
+function buildInfoWindowHtml({ location, title, subtitle, guideText, badges = [], guideToggle = null }) {
+  const mediaUrl = getPhotoUrl(location?.photo);
+  const metaItems = [subtitle, location ? buildLocationMeta(location) : ""]
+    .filter(Boolean)
+    .concat(badges)
+    .map((item) => `<span class="badge">${escapeHtml(item)}</span>`)
+    .join("");
+
+  return `
+    <div class="travel-info-window">
+      <div class="travel-info-window__media">
+        <img src="${mediaUrl}" alt="${escapeHtml(location?.photo_alt || title || "旅行图片")}">
+      </div>
+      <div class="travel-info-window__body">
+        <h3>${escapeHtml(title || location?.name || "地点")}</h3>
+        <div class="travel-info-window__meta">${metaItems}</div>
+        <p>${formatMultilineText(guideText || location?.description || location?.notes || "暂无补充说明。")}</p>
+        ${location?.address ? `<p>${escapeHtml(location.address)}</p>` : ""}
+        ${guideToggle ? `
+          <div class="travel-info-window__actions">
+            <button
+              type="button"
+              class="action-chip action-chip--popup"
+              data-guide-toggle="true"
+              data-location-id="${escapeHtml(guideToggle.locationId)}"
+              data-guide-mode="${escapeHtml(guideToggle.mode)}"
+            >
+              ${escapeHtml(guideToggle.label || "查看攻略")}
+            </button>
+          </div>
+        ` : ""}
+      </div>
+    </div>
+  `;
+}
 
 export function createMarkerLayer(map, icons) {
-  let markers = [];
   const markerByLocationId = new Map();
   const markerGroup = window.L.layerGroup().addTo(map);
 
   function clear() {
     markerGroup.clearLayers();
-    markers = [];
     markerByLocationId.clear();
   }
 
-  function buildMarkerContent(location) {
+  function buildLeafletIcon(location, extraClass = "") {
     const icon = icons[location.icon_key] || icons[location.category] || icons.default;
     const label = location.name.length > 9 ? `${location.name.slice(0, 9)}...` : location.name;
-    return `
-      <div class="marker-pin" style="background:${icon.background};">
-        <span class="marker-pin__icon">${icon.emoji}</span>
-        <span>${label}</span>
-      </div>
-    `;
-  }
-
-  function buildLeafletIcon(location, extraClass = "") {
     return window.L.divIcon({
       className: `travel-marker-icon ${extraClass}`.trim(),
-      html: buildMarkerContent(location),
+      html: `
+        <div class="marker-pin" style="background:${icon.background};">
+          <span class="marker-pin__icon">${icon.emoji}</span>
+          <span>${label}</span>
+        </div>
+      `,
       iconSize: null,
       iconAnchor: [0, 0],
       popupAnchor: [0, -34],
@@ -53,10 +89,9 @@ export function createMarkerLayer(map, icons) {
 
   function render(locations, context = {}) {
     clear();
-    const nextMarkers = [];
-    const markerClass = context.markerClass || "";
     const getMarkerContext = context.getMarkerContext || (() => ({}));
-    const onSelect = context.onSelect || null;
+    const markerClass = context.markerClass || "";
+    const markers = [];
 
     for (const location of locations) {
       const latLng = toLeafletLatLng([location.lng, location.lat]);
@@ -75,19 +110,12 @@ export function createMarkerLayer(map, icons) {
       });
 
       bindPopup(marker, location, markerContext);
-      marker.on("click", () => {
-        marker.openPopup();
-        if (typeof onSelect === "function") {
-          onSelect(location, markerContext);
-        }
-      });
-
+      marker.on("click", () => marker.openPopup());
       markerGroup.addLayer(marker);
-      nextMarkers.push(marker);
       markerByLocationId.set(location.id, marker);
+      markers.push(marker);
     }
 
-    markers = nextMarkers;
     return markers;
   }
 
@@ -104,9 +132,5 @@ export function createMarkerLayer(map, icons) {
     return true;
   }
 
-  return {
-    clear,
-    render,
-    focusLocation,
-  };
+  return { clear, render, focusLocation };
 }

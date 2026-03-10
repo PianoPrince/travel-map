@@ -1,5 +1,9 @@
-import { AMAP_TILE_URL, FALLBACK_CENTER, FALLBACK_ZOOM } from "./constants.js";
 import { toLeafletLatLng } from "./formatters.js";
+
+const AMAP_TILE_URL =
+  "https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}";
+const FALLBACK_CENTER = [100.803, 22.009];
+const FALLBACK_ZOOM = 11;
 
 export function setMapMessage(container, overlay, html) {
   container.innerHTML = "";
@@ -38,11 +42,7 @@ export function createMap(container, trip) {
 
 export function attachMapControls(map) {
   window.L.control.zoom({ position: "bottomright" }).addTo(map);
-  window.L.control.scale({
-    position: "bottomleft",
-    metric: true,
-    imperial: false,
-  }).addTo(map);
+  window.L.control.scale({ position: "bottomleft", metric: true, imperial: false }).addTo(map);
   window.L.control.attribution({ position: "bottomleft", prefix: false })
     .addAttribution("© AutoNavi")
     .addTo(map);
@@ -54,9 +54,7 @@ export function fitMapToOverlays(map, overlays, trip) {
     const group = window.L.featureGroup(visibleOverlays);
     const bounds = group.getBounds();
     if (bounds.isValid()) {
-      map.fitBounds(bounds, {
-        padding: [80, 80],
-      });
+      map.fitBounds(bounds, { padding: [80, 80] });
       return;
     }
   }
