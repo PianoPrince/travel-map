@@ -10,12 +10,25 @@ import {
 } from "./formatters.js";
 import { createMarkerLayer } from "./marker-layer.js";
 import { createRouteLayer } from "./route-layer.js";
-import { attachMapControls, clearMapMessage, createMap, fitMapToOverlays, setMapMessage } from "./map-view.js";
+import {
+  attachMapControls,
+  clearMapMessage,
+  createMap,
+  fitMapToOverlays,
+  setMapMessage,
+} from "./map-view.js";
+
+const MOBILE_MEDIA_QUERY = "(max-width: 960px)";
+const mobileMediaQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
 
 const refs = {
+  sidebar: document.getElementById("sidebar"),
+  drawerToggle: document.getElementById("drawerToggle"),
   tripSummary: document.getElementById("tripSummary"),
   dayPills: document.getElementById("dayPills"),
+  daySwitcherSection: document.getElementById("daySwitcherSection"),
   dayOverview: document.getElementById("dayOverview"),
+  timelineSection: document.getElementById("timelineSection"),
   timelineList: document.getElementById("timelineList"),
   activeDayTitle: document.getElementById("activeDayTitle"),
   activeDayMeta: document.getElementById("activeDayMeta"),
@@ -29,6 +42,11 @@ const refs = {
   guidePanelTitle: document.getElementById("guidePanelTitle"),
   guidePanelMeta: document.getElementById("guidePanelMeta"),
   guidePanelBody: document.getElementById("guidePanelBody"),
+  mobileGuide: document.getElementById("mobileGuide"),
+  mobileGuideTitle: document.getElementById("mobileGuideTitle"),
+  mobileGuideMeta: document.getElementById("mobileGuideMeta"),
+  mobileGuideBody: document.getElementById("mobileGuideBody"),
+  mobileGuideBack: document.getElementById("mobileGuideBack"),
 };
 
 let itinerary = null;
@@ -44,7 +62,13 @@ const state = {
   showFoods: false,
   highlightedSegmentId: null,
   openGuideId: null,
+  drawerState: "peek",
+  drawerMode: "itinerary",
 };
+
+function isMobileViewport() {
+  return mobileMediaQuery.matches;
+}
 
 function setStatus(text, mode = "warn") {
   refs.statusPill.textContent = text;
@@ -98,14 +122,6 @@ function renderGuideBody(entry) {
   return `<p>${formatMultilineText(entry.guide_text || "暂无攻略说明。")}</p>`;
 }
 
-function closeGuidePanel() {
-  refs.guidePanel.hidden = true;
-  refs.guidePanelTitle.textContent = "";
-  refs.guidePanelMeta.textContent = "";
-  refs.guidePanelBody.innerHTML = "";
-  state.openGuideId = null;
-}
-
 function buildGuideMeta(entry, location) {
   if (location) {
     return `${location.name} · ${buildLocationMeta(location)}`;
@@ -134,13 +150,71 @@ function resolveGuideEntryForLocation(dayView, location, mode = "core") {
   return matchedPoi ? { ...matchedPoi, entry_type: "poi" } : buildFallbackGuideEntry(location, dayView, mode);
 }
 
+function applyDrawerState() {
+  const isMobile = isMobileViewport();
+  refs.sidebar.dataset.drawerState = isMobile ? state.drawerState : "desktop";
+  refs.sidebar.dataset.drawerMode = isMobile ? state.drawerMode : "itinerary";
+  refs.drawerToggle.hidden = !isMobile;
+
+  if (!isMobile) {
+    refs.mobileGuide.hidden = true;
+    refs.daySwitcherSection.hidden = false;
+    refs.dayOverview.hidden = false;
+    refs.timelineSection.hidden = false;
+    return;
+  }
+
+  const showingGuide = state.drawerMode === "guide";
+  refs.mobileGuide.hidden = !showingGuide;
+  refs.daySwitcherSection.hidden = showingGuide;
+  refs.dayOverview.hidden = showingGuide;
+  refs.timelineSection.hidden = showingGuide;
+
+  const drawerLabels = {
+    collapsed: "展开行程",
+    peek: "展开更多",
+    expanded: "收起行程",
+  };
+  refs.drawerToggle.textContent = showingGuide ? "收起攻略" : drawerLabels[state.drawerState];
+}
+
+function closeGuidePanel() {
+  refs.guidePanel.hidden = true;
+  refs.guidePanelTitle.textContent = "";
+  refs.guidePanelMeta.textContent = "";
+  refs.guidePanelBody.innerHTML = "";
+  refs.mobileGuideTitle.textContent = "";
+  refs.mobileGuideMeta.textContent = "";
+  refs.mobileGuideBody.innerHTML = "";
+  state.openGuideId = null;
+  state.drawerMode = "itinerary";
+  applyDrawerState();
+}
+
 function openGuidePanel(entry) {
   const location = entry.location_id ? locationsById.get(entry.location_id) : null;
-  refs.guidePanelTitle.textContent = entry.title || location?.name || "攻略详情";
-  refs.guidePanelMeta.textContent = buildGuideMeta(entry, location);
-  refs.guidePanelBody.innerHTML = renderGuideBody(entry);
-  refs.guidePanel.hidden = false;
+  const title = entry.title || location?.name || "攻略详情";
+  const meta = buildGuideMeta(entry, location);
+  const body = renderGuideBody(entry);
+
   state.openGuideId = entry.id;
+
+  if (isMobileViewport()) {
+    refs.mobileGuideTitle.textContent = title;
+    refs.mobileGuideMeta.textContent = meta;
+    refs.mobileGuideBody.innerHTML = body;
+    state.drawerMode = "guide";
+    state.drawerState = "expanded";
+    refs.guidePanel.hidden = true;
+    applyDrawerState();
+    return;
+  }
+
+  refs.guidePanelTitle.textContent = title;
+  refs.guidePanelMeta.textContent = meta;
+  refs.guidePanelBody.innerHTML = body;
+  refs.guidePanel.hidden = false;
+  applyDrawerState();
 }
 
 function toggleGuidePanel(entry) {
@@ -149,6 +223,21 @@ function toggleGuidePanel(entry) {
     return;
   }
   openGuidePanel(entry);
+}
+
+function cycleDrawerState() {
+  if (state.drawerMode === "guide") {
+    closeGuidePanel();
+    return;
+  }
+
+  const nextState = {
+    collapsed: "peek",
+    peek: "expanded",
+    expanded: "collapsed",
+  };
+  state.drawerState = nextState[state.drawerState];
+  applyDrawerState();
 }
 
 function renderDayPills() {
@@ -161,6 +250,10 @@ function renderDayPills() {
     button.addEventListener("click", async () => {
       activeDayId = day.id;
       state.highlightedSegmentId = null;
+      state.drawerMode = "itinerary";
+      if (isMobileViewport()) {
+        state.drawerState = "peek";
+      }
       closeGuidePanel();
       renderDayPills();
       await renderActiveDay();
@@ -317,6 +410,7 @@ async function renderActiveDay() {
 
   renderOverview(dayView);
   renderTimeline(dayView);
+  applyDrawerState();
 
   try {
     setStatus(state.highlightedSegmentId ? "动线高亮中" : "已更新", state.highlightedSegmentId ? "warn" : "ok");
@@ -334,6 +428,18 @@ async function renderActiveDay() {
     setStatus("渲染异常", "error");
     refs.mapOverlayMessage.hidden = false;
     refs.mapOverlayMessage.innerHTML = `<strong>路线缓存渲染失败</strong><br>${escapeHtml(error.message)}<br>${escapeHtml(ROUTE_CACHE_NOTICE)}`;
+  }
+}
+
+function handleViewportChange() {
+  if (!isMobileViewport()) {
+    state.drawerMode = "itinerary";
+  } else if (state.drawerMode !== "guide") {
+    state.drawerState = "peek";
+  }
+  applyDrawerState();
+  if (itinerary) {
+    renderActiveDay();
   }
 }
 
@@ -359,7 +465,23 @@ async function init() {
     await renderActiveDay();
   });
 
+  refs.drawerToggle.addEventListener("click", () => {
+    cycleDrawerState();
+  });
+
   refs.guidePanelClose.addEventListener("click", () => closeGuidePanel());
+  refs.mobileGuideBack.addEventListener("click", () => {
+    state.drawerMode = "itinerary";
+    state.drawerState = "peek";
+    closeGuidePanel();
+    renderActiveDay();
+  });
+
+  if (mobileMediaQuery.addEventListener) {
+    mobileMediaQuery.addEventListener("change", handleViewportChange);
+  } else if (mobileMediaQuery.addListener) {
+    mobileMediaQuery.addListener(handleViewportChange);
+  }
 
   try {
     const data = await loadTripData();
@@ -374,6 +496,7 @@ async function init() {
     foodLayer = createMarkerLayer(map, icons);
     routeLayer = createRouteLayer(map, data.routeCache);
 
+    applyDrawerState();
     renderDayPills();
     await renderActiveDay();
   } catch (error) {

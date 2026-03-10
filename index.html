@@ -12,28 +12,47 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar__glow"></div>
-      <header class="sidebar__header">
-        <p class="eyebrow">Tropical Route</p>
-        <h1>西双版纳 4 日地图</h1>
-        <p class="lede" id="tripSummary">正在加载行程数据...</p>
-      </header>
+      <div class="sidebar__drawer-bar">
+        <span class="sidebar__handle" aria-hidden="true"></span>
+        <button class="sidebar__toggle" id="drawerToggle" type="button">展开行程</button>
+      </div>
 
-      <section class="day-switcher">
-        <div class="section-title">
-          <span>行程日程</span>
-        </div>
-        <div class="day-pills" id="dayPills"></div>
-      </section>
+      <div class="sidebar__scroll">
+        <header class="sidebar__header">
+          <p class="eyebrow">Tropical Route</p>
+          <h1>西双版纳 4 日地图</h1>
+          <p class="lede" id="tripSummary">正在加载行程数据...</p>
+        </header>
 
-      <section class="day-overview" id="dayOverview"></section>
+        <section class="mobile-guide" id="mobileGuide" hidden>
+          <div class="mobile-guide__header">
+            <div>
+              <p class="eyebrow">Guide</p>
+              <h2 id="mobileGuideTitle">攻略详情</h2>
+              <p class="lede" id="mobileGuideMeta"></p>
+            </div>
+            <button class="action-chip" id="mobileGuideBack" type="button">返回行程</button>
+          </div>
+          <div class="mobile-guide__body" id="mobileGuideBody"></div>
+        </section>
 
-      <section class="timeline">
-        <div class="section-title">
-          <span>当天动线</span>
-          <span class="status-pill" id="statusPill">待初始化</span>
-        </div>
-        <div class="timeline__list" id="timelineList"></div>
-      </section>
+        <section class="day-switcher" id="daySwitcherSection">
+          <div class="section-title">
+            <span>行程日程</span>
+          </div>
+          <div class="day-pills" id="dayPills"></div>
+        </section>
+
+        <section class="day-overview" id="dayOverview"></section>
+
+        <section class="timeline" id="timelineSection">
+          <div class="section-title">
+            <span>当天动线</span>
+            <span class="status-pill" id="statusPill">待初始化</span>
+          </div>
+          <div class="timeline__list" id="timelineList"></div>
+        </section>
+      </div>
     </aside>
 
     <main class="map-stage">
