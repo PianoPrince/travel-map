@@ -65,7 +65,7 @@ const state = {
   highlightedSegmentId: null,
   openGuideId: null,
   openGuideEntry: null,
-  drawerState: "peek",
+  drawerState: "collapsed",
   drawerMode: "itinerary",
   guideApiBase: "",
   guideOverrides: new Map(),
@@ -277,7 +277,6 @@ function applyDrawerState() {
 
   const drawerLabels = {
     collapsed: "展开行程",
-    peek: "展开更多",
     expanded: "收起行程",
   };
   refs.drawerToggle.textContent = showingGuide ? "收起攻略" : drawerLabels[state.drawerState];
@@ -354,13 +353,7 @@ function cycleDrawerState() {
     closeGuidePanel();
     return;
   }
-
-  const nextState = {
-    collapsed: "peek",
-    peek: "expanded",
-    expanded: "collapsed",
-  };
-  state.drawerState = nextState[state.drawerState];
+  state.drawerState = state.drawerState === "collapsed" ? "expanded" : "collapsed";
   applyDrawerState();
 }
 
@@ -376,7 +369,7 @@ function renderDayPills() {
       state.highlightedSegmentId = null;
       state.drawerMode = "itinerary";
       if (isMobileViewport()) {
-        state.drawerState = "peek";
+        state.drawerState = "collapsed";
       }
       closeGuidePanel();
       renderDayPills();
@@ -589,7 +582,7 @@ function handleViewportChange() {
   if (!isMobileViewport()) {
     state.drawerMode = "itinerary";
   } else if (state.drawerMode !== "guide") {
-    state.drawerState = "peek";
+    state.drawerState = "collapsed";
   }
   applyDrawerState();
   if (itinerary) {
@@ -729,7 +722,7 @@ async function init() {
   refs.guidePanelClose.addEventListener("click", () => closeGuidePanel());
   refs.mobileGuideBack.addEventListener("click", () => {
     state.drawerMode = "itinerary";
-    state.drawerState = "peek";
+    state.drawerState = "collapsed";
     closeGuidePanel();
     renderActiveDay();
   });

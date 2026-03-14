@@ -656,6 +656,26 @@ path.route-line-dash {
   padding-left: 20px;
 }
 
+.guide-richtext table {
+  width: 100%;
+  margin: 0 0 14px;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.guide-richtext th,
+.guide-richtext td {
+  padding: 8px 10px;
+  border: 1px solid rgba(80, 68, 48, 0.12);
+  text-align: left;
+  vertical-align: top;
+}
+
+.guide-richtext th {
+  background: rgba(33, 48, 50, 0.06);
+  color: var(--ink);
+}
+
 .guide-richtext li {
   margin-bottom: 6px;
 }
@@ -755,10 +775,6 @@ path.route-line-dash {
 
   .sidebar[data-drawer-state="collapsed"] {
     height: 92px;
-  }
-
-  .sidebar[data-drawer-state="peek"] {
-    height: min(42vh, 340px);
   }
 
   .sidebar[data-drawer-state="expanded"] {
@@ -864,10 +880,6 @@ path.route-line-dash {
     bottom: 10px;
     left: 10px;
     border-radius: 24px;
-  }
-
-  .sidebar[data-drawer-state="peek"] {
-    height: min(38vh, 300px);
   }
 
   .sidebar[data-drawer-state="expanded"] {

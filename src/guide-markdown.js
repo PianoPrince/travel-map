@@ -46,6 +46,37 @@ function renderImage(line) {
   return `<figure class="guide-image"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"></figure>`;
 }
 
+function parseTableRow(line = "") {
+  const trimmed = String(line || "").trim();
+  if (!trimmed.includes("|")) {
+    return null;
+  }
+
+  const content = trimmed.replace(/^\|/, "").replace(/\|$/, "");
+  const cells = content.split("|").map((cell) => cell.trim());
+  return cells.length >= 2 ? cells : null;
+}
+
+function isTableSeparator(line = "", expectedColumnCount = null) {
+  const cells = parseTableRow(line);
+  if (!cells) {
+    return false;
+  }
+  if (expectedColumnCount !== null && cells.length !== expectedColumnCount) {
+    return false;
+  }
+  return cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+}
+
+function isTableStart(lines, index) {
+  const header = parseTableRow(lines[index]);
+  if (!header) {
+    return false;
+  }
+  const separator = lines[index + 1];
+  return isTableSeparator(separator, header.length);
+}
+
 export function markdownToHtml(markdown = "") {
   const text = normalize(markdown).trim();
   if (!text) {
@@ -75,6 +106,32 @@ export function markdownToHtml(markdown = "") {
       const level = headingMatch[1].length;
       blocks.push(`<h${level}>${renderInline(headingMatch[2])}</h${level}>`);
       index += 1;
+      continue;
+    }
+
+    if (isTableStart(lines, index)) {
+      const headerCells = parseTableRow(lines[index]);
+      index += 2;
+
+      const bodyRows = [];
+      while (index < lines.length) {
+        const rowLine = lines[index].trim();
+        if (!rowLine) {
+          break;
+        }
+        const rowCells = parseTableRow(rowLine);
+        if (!rowCells || rowCells.length !== headerCells.length) {
+          break;
+        }
+        bodyRows.push(rowCells);
+        index += 1;
+      }
+
+      const headerHtml = `<tr>${headerCells.map((cell) => `<th>${renderInline(cell)}</th>`).join("")}</tr>`;
+      const bodyHtml = bodyRows
+        .map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell)}</td>`).join("")}</tr>`)
+        .join("");
+      blocks.push(`<table class="guide-table"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`);
       continue;
     }
 
@@ -111,7 +168,7 @@ export function markdownToHtml(markdown = "") {
     const paragraphLines = [];
     while (index < lines.length) {
       const next = lines[index].trim();
-      if (!next || HEADING.test(next) || IMAGE_SYNTAX.test(next) || ORDERED_ITEM.test(next) || BULLET_ITEM.test(next)) {
+      if (!next || HEADING.test(next) || IMAGE_SYNTAX.test(next) || ORDERED_ITEM.test(next) || BULLET_ITEM.test(next) || isTableStart(lines, index)) {
         break;
       }
       paragraphLines.push(next);
