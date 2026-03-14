@@ -4,8 +4,14 @@ import {
   formatMultilineText,
   getCategoryLabel,
   getPhotoUrl,
-  toLeafletLatLng,
 } from "./formatters.js";
+
+function toLngLat(location) {
+  if (!location || !Number.isFinite(location.lng) || !Number.isFinite(location.lat)) {
+    return null;
+  }
+  return [location.lng, location.lat];
+}
 
 function buildInfoWindowHtml({ location, title, subtitle, guideText, badges = [], guideToggle = null }) {
   const mediaUrl = getPhotoUrl(location?.photo);
@@ -18,7 +24,7 @@ function buildInfoWindowHtml({ location, title, subtitle, guideText, badges = []
   return `
     <div class="travel-info-window">
       <div class="travel-info-window__media">
-        <img src="${mediaUrl}" alt="${escapeHtml(location?.photo_alt || title || "旅行图片")}">
+        <img src="${mediaUrl}" alt="${escapeHtml(location?.photo_alt || title || "Travel image")}">
       </div>
       <div class="travel-info-window__body">
         <h3>${escapeHtml(title || location?.name || "地点")}</h3>
@@ -43,60 +49,81 @@ function buildInfoWindowHtml({ location, title, subtitle, guideText, badges = []
   `;
 }
 
+function buildMarkerContent(icon, label, extraClass = "") {
+  return `
+    <div class="amap-marker-chip ${escapeHtml(extraClass)}">
+      <div class="marker-pin" style="background:${icon.background};">
+        <span class="marker-pin__icon">${icon.emoji}</span>
+        <span>${escapeHtml(label)}</span>
+      </div>
+    </div>
+  `;
+}
+
 export function createMarkerLayer(map, icons) {
   const markerByLocationId = new Map();
-  const markerGroup = window.L.layerGroup().addTo(map);
+  const overlays = [];
+  const infoWindow = new window.AMap.InfoWindow({
+    isCustom: true,
+    autoMove: true,
+    offset: new window.AMap.Pixel(0, -30),
+  });
 
   function clear() {
-    markerGroup.clearLayers();
+    overlays.forEach((overlay) => overlay.setMap(null));
+    overlays.length = 0;
     markerByLocationId.clear();
+    infoWindow.close();
   }
 
-  function buildLeafletIcon(location, extraClass = "") {
+  function buildMarker(location, extraClass = "") {
     const icon = icons[location.icon_key] || icons[location.category] || icons.default;
     const label = location.name.length > 9 ? `${location.name.slice(0, 9)}...` : location.name;
-    return window.L.divIcon({
-      className: `travel-marker-icon ${extraClass}`.trim(),
-      html: `
-        <div class="marker-pin" style="background:${icon.background};">
-          <span class="marker-pin__icon">${icon.emoji}</span>
-          <span>${label}</span>
-        </div>
-      `,
-      iconSize: null,
-      iconAnchor: [0, 0],
-      popupAnchor: [0, -34],
+    const position = toLngLat(location);
+    if (!position) {
+      return null;
+    }
+
+    return new window.AMap.Marker({
+      position,
+      anchor: "bottom-center",
+      content: buildMarkerContent(icon, label, extraClass),
+      offset: new window.AMap.Pixel(0, 0),
+      zIndex: 120,
     });
   }
 
   function bindPopup(marker, location, context = {}) {
-    marker.bindPopup(
-      buildInfoWindowHtml({
-        location,
-        title: context.title || location.name,
-        subtitle: context.subtitle || getCategoryLabel(location.category),
-        guideText: context.guideText || location.description || location.notes,
-        badges: context.badges || [],
-        guideToggle: context.guideToggle || null,
-      }),
-      {
-        closeButton: false,
-        className: "travel-popup",
-        autoPanPadding: [24, 24],
-      },
-    );
+    const popupHtml = buildInfoWindowHtml({
+      location,
+      title: context.title || location.name,
+      subtitle: context.subtitle || getCategoryLabel(location.category),
+      guideText: context.guideText || location.description || location.notes,
+      badges: context.badges || [],
+      guideToggle: context.guideToggle || null,
+    });
+    marker.__popupHtml = popupHtml;
+    marker.__popupPosition = toLngLat(location);
+  }
+
+  function openPopup(marker) {
+    if (!marker?.__popupHtml || !marker?.__popupPosition) {
+      return;
+    }
+    infoWindow.setContent(marker.__popupHtml);
+    infoWindow.open(map, marker.__popupPosition);
   }
 
   function render(locations, context = {}) {
     clear();
     const getMarkerContext = context.getMarkerContext || (() => ({}));
     const markerClass = context.markerClass || "";
-    const markers = [];
+    const rendered = [];
 
-    for (const location of locations) {
-      const latLng = toLeafletLatLng([location.lng, location.lat]);
-      if (!latLng) {
-        continue;
+    locations.forEach((location) => {
+      const marker = buildMarker(location, markerClass);
+      if (!marker) {
+        return;
       }
 
       const markerContext = {
@@ -104,31 +131,29 @@ export function createMarkerLayer(map, icons) {
         ...getMarkerContext(location),
       };
 
-      const marker = window.L.marker(latLng, {
-        icon: buildLeafletIcon(location, markerClass),
-        riseOnHover: true,
-      });
-
       bindPopup(marker, location, markerContext);
-      marker.on("click", () => marker.openPopup());
-      markerGroup.addLayer(marker);
-      markerByLocationId.set(location.id, marker);
-      markers.push(marker);
-    }
+      marker.on("click", () => openPopup(marker));
+      marker.setMap(map);
 
-    return markers;
+      overlays.push(marker);
+      markerByLocationId.set(location.id, marker);
+      rendered.push(marker);
+    });
+
+    return rendered;
   }
 
   function focusLocation(locationId, location, context = {}) {
     const marker = markerByLocationId.get(locationId);
-    const latLng = toLeafletLatLng([location?.lng, location?.lat]);
-    if (!marker || !latLng) {
+    const position = toLngLat(location);
+    if (!marker || !position) {
       return false;
     }
 
     bindPopup(marker, location, context);
-    map.setView(latLng, Math.max(map.getZoom(), 13), { animate: true });
-    marker.openPopup();
+    const nextZoom = Math.max(13, map.getZoom() || 13);
+    map.setZoomAndCenter(nextZoom, position);
+    openPopup(marker);
     return true;
   }
 

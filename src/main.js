@@ -483,7 +483,7 @@ function refreshOpenGuideEntry(dayView) {
 
 function renderMap(dayView) {
   if (!map) {
-    setMapMessage(refs.mapContainer, refs.mapOverlayMessage, "<strong>地图未初始化</strong><br>Leaflet 实例尚未创建，请刷新页面。");
+    setMapMessage(refs.mapContainer, refs.mapOverlayMessage, "<strong>地图未初始化</strong><br>地图实例尚未创建，请刷新页面。");
     return { overlays: [], missingSegments: [] };
   }
 
@@ -756,7 +756,7 @@ async function init() {
       }
     }
 
-    map = createMap(refs.mapContainer, itinerary.trip);
+    map = await createMap(refs.mapContainer, itinerary.trip);
     attachMapControls(map);
     markerLayer = createMarkerLayer(map, icons);
     foodLayer = createMarkerLayer(map, icons);

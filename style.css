@@ -473,6 +473,33 @@ body {
   margin-top: 12px;
 }
 
+.amap-marker-chip--food .marker-pin {
+  opacity: 0.88;
+}
+
+.route-arrow {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 122, 24, 0.94);
+  color: #fffaf1;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(180, 85, 0, 0.24);
+}
+
+.amap-logo,
+.amap-copyright {
+  opacity: 0.92;
+}
+
+.amap-toolbar,
+.amap-scalecontrol {
+  filter: drop-shadow(0 10px 24px rgba(40, 30, 18, 0.12));
+}
+
 .leaflet-container {
   width: 100%;
   height: 100%;

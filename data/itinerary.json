@@ -80,7 +80,7 @@
           "id": "day2-seg-2",
           "order": 2,
           "label": "曼听御花园 → 总佛寺",
-          "transport_mode": "driving",
+          "transport_mode": "walking",
           "from": "manting_garden",
           "to": "general_buddhist_temple",
           "time_hint": "午前",

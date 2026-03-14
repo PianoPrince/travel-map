@@ -1,6 +1,6 @@
 ﻿# Travel Map Prototype
 
-基于静态前端（Leaflet）和轻量 Python 工具链的西双版纳旅行地图。
+基于静态前端（AMap JavaScript API v2）和轻量 Python 工具链的西双版纳旅行地图。
 
 ## 本地运行
 
@@ -10,6 +10,22 @@ python tools\serve.py
 ```
 
 浏览器打开 `http://127.0.0.1:8000`。
+
+## 地图 Key 配置（必填）
+
+编辑 `src/runtime-config.js`，至少填入 `amapKey`：
+
+```js
+window.TRAVEL_APP_CONFIG = {
+  amapKey: "your_amap_js_key",
+  securityJsCode: "", // 可选：控制台开启安全密钥时填写
+  guideApiBase: "https://travel-guide-api.<your-subdomain>.workers.dev",
+};
+```
+
+说明：
+- `amapKey` 用于前端地图渲染（JS API Key）。
+- `AMAP_API_KEY` 环境变量仍只用于 `tools/prefetch_routes.py` 的路线预取。
 
 ## 路线缓存（可选重建）
 
@@ -50,6 +66,8 @@ wrangler deploy
 
 ```js
 window.TRAVEL_APP_CONFIG = {
+  amapKey: "your_amap_js_key",
+  securityJsCode: "",
   guideApiBase: "https://travel-guide-api.<your-subdomain>.workers.dev",
 };
 ```

@@ -20,6 +20,8 @@ function isSafeUrl(url = "") {
 
 function renderInline(raw = "") {
   let safe = escapeHtml(raw);
+  // 只允许 <br> 这一种标签恢复为真正换行
+  safe = safe.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
   safe = safe.replace(CODE, "<code>$1</code>");
   safe = safe.replace(BOLD, "<strong>$1</strong>");
   safe = safe.replace(ITALIC, "<em>$1</em>");

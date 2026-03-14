@@ -1,9 +1,60 @@
-import { toLeafletLatLng } from "./formatters.js";
-
-const AMAP_TILE_URL =
-  "https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}";
 const FALLBACK_CENTER = [100.803, 22.009];
 const FALLBACK_ZOOM = 11;
+let amapScriptPromise = null;
+
+function toLngLat([lng, lat] = []) {
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+    return null;
+  }
+  return [lng, lat];
+}
+
+function getRuntimeConfig() {
+  return window.TRAVEL_APP_CONFIG || {};
+}
+
+function ensureSecurityConfig() {
+  const { securityJsCode } = getRuntimeConfig();
+  if (securityJsCode) {
+    window._AMapSecurityConfig = { securityJsCode };
+  }
+}
+
+function loadAMapScript() {
+  if (window.AMap) {
+    return Promise.resolve(window.AMap);
+  }
+
+  if (amapScriptPromise) {
+    return amapScriptPromise;
+  }
+
+  const { amapKey } = getRuntimeConfig();
+  if (!amapKey) {
+    return Promise.reject(new Error("Missing amapKey in src/runtime-config.js."));
+  }
+
+  ensureSecurityConfig();
+  const scriptSrc = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&plugin=AMap.Scale,AMap.ToolBar`;
+  amapScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = scriptSrc;
+    script.async = true;
+    script.onload = () => {
+      if (window.AMap) {
+        resolve(window.AMap);
+      } else {
+        reject(new Error("AMap SDK loaded without window.AMap."));
+      }
+    };
+    script.onerror = () => {
+      reject(new Error("Failed to load AMap JS API script."));
+    };
+    document.head.appendChild(script);
+  });
+
+  return amapScriptPromise;
+}
 
 export function setMapMessage(container, overlay, html) {
   container.innerHTML = "";
@@ -16,50 +67,36 @@ export function clearMapMessage(overlay) {
   overlay.innerHTML = "";
 }
 
-export function createMap(container, trip) {
-  if (!window.L) {
-    throw new Error("Leaflet 未加载，请确认 `assets/vendor/leaflet` 资源存在且已被页面引用。");
-  }
+export async function createMap(container, trip) {
+  await loadAMapScript();
 
-  const center = toLeafletLatLng(trip.default_center || FALLBACK_CENTER)
-    || toLeafletLatLng(FALLBACK_CENTER);
-
-  const map = window.L.map(container, {
-    zoomControl: false,
-    attributionControl: false,
-    preferCanvas: true,
+  const center = toLngLat(trip.default_center || FALLBACK_CENTER) || FALLBACK_CENTER;
+  const defaultLayer = typeof window.AMap.createDefaultLayer === "function"
+    ? window.AMap.createDefaultLayer()
+    : null;
+  const map = new window.AMap.Map(container, {
+    viewMode: "2D",
+    zoom: trip.default_zoom || FALLBACK_ZOOM,
+    center,
+    ...(defaultLayer ? { layers: [defaultLayer] } : {}),
+    resizeEnable: true,
   });
 
-  window.L.tileLayer(AMAP_TILE_URL, {
-    minZoom: 3,
-    maxZoom: 18,
-    attribution: "© AutoNavi",
-  }).addTo(map);
-
-  map.setView(center, trip.default_zoom || FALLBACK_ZOOM);
   return map;
 }
 
 export function attachMapControls(map) {
-  window.L.control.zoom({ position: "bottomright" }).addTo(map);
-  window.L.control.scale({ position: "bottomleft", metric: true, imperial: false }).addTo(map);
-  window.L.control.attribution({ position: "bottomleft", prefix: false })
-    .addAttribution("© AutoNavi")
-    .addTo(map);
+  map.addControl(new window.AMap.Scale());
+  map.addControl(new window.AMap.ToolBar({ position: "RB" }));
 }
 
 export function fitMapToOverlays(map, overlays, trip) {
   const visibleOverlays = overlays.filter(Boolean);
   if (visibleOverlays.length > 0) {
-    const group = window.L.featureGroup(visibleOverlays);
-    const bounds = group.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [80, 80] });
-      return;
-    }
+    map.setFitView(visibleOverlays, false, [80, 80, 80, 80]);
+    return;
   }
 
-  const center = toLeafletLatLng(trip.default_center || FALLBACK_CENTER)
-    || toLeafletLatLng(FALLBACK_CENTER);
-  map.setView(center, trip.default_zoom || FALLBACK_ZOOM);
+  const center = toLngLat(trip.default_center || FALLBACK_CENTER) || FALLBACK_CENTER;
+  map.setZoomAndCenter(trip.default_zoom || FALLBACK_ZOOM, center);
 }

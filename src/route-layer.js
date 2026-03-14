@@ -1,4 +1,4 @@
-import { formatDistance, formatDuration, toLeafletLatLng } from "./formatters.js";
+import { formatDistance, formatDuration } from "./formatters.js";
 
 const STATIC_ROUTE_COLOR = "#2f7f69";
 const HIGHLIGHT_ROUTE_COLOR = "#ff7a18";
@@ -7,87 +7,60 @@ function midpoint(path) {
   return path.length === 0 ? null : path[Math.floor(path.length / 2)];
 }
 
-function toLeafletPath(path = []) {
-  return path.map(toLeafletLatLng).filter(Boolean);
+function toLngLatPath(path = []) {
+  return path.filter((point) => (
+    Array.isArray(point)
+    && Number.isFinite(point[0])
+    && Number.isFinite(point[1])
+  ));
 }
 
 function endAngle(path) {
   if (path.length < 2) {
     return 0;
   }
-  const [prevLat, prevLng] = path[path.length - 2];
-  const [endLat, endLng] = path[path.length - 1];
+  const [prevLng, prevLat] = path[path.length - 2];
+  const [endLng, endLat] = path[path.length - 1];
   return (Math.atan2(endLat - prevLat, endLng - prevLng) * 180) / Math.PI;
 }
 
-function ensurePane(map, name, zIndex) {
-  const pane = map.getPane(name) || map.createPane(name);
-  pane.style.zIndex = String(zIndex);
-  pane.style.pointerEvents = "none";
-  return name;
-}
-
 export function createRouteLayer(map, routeCache) {
-  let animationFrameId = null;
   const routesBySegmentId = new Map(Object.entries(routeCache?.routes ?? {}));
-  const basePane = ensurePane(map, "route-base-pane", 420);
-  const labelPane = ensurePane(map, "route-label-pane", 430);
-  const highlightPane = ensurePane(map, "route-highlight-pane", 650);
-  const baseGroup = window.L.layerGroup().addTo(map);
-  const highlightGroup = window.L.layerGroup().addTo(map);
+  const baseOverlays = [];
+  const highlightOverlays = [];
 
-  function stopDashAnimation() {
-    if (animationFrameId !== null) {
-      window.cancelAnimationFrame(animationFrameId);
-      animationFrameId = null;
-    }
+  function removeAll(list) {
+    list.forEach((overlay) => overlay.setMap(null));
+    list.length = 0;
   }
 
   function clear() {
-    stopDashAnimation();
-    baseGroup.clearLayers();
-    highlightGroup.clearLayers();
-  }
-
-  function startDashAnimation(polyline) {
-    let dashOffset = 0;
-    let lastFrame = null;
-
-    const tick = (timestamp) => {
-      const pathElement = polyline.getElement?.();
-      if (!pathElement || !pathElement.isConnected) {
-        animationFrameId = null;
-        return;
-      }
-
-      if (lastFrame !== null) {
-        dashOffset -= (timestamp - lastFrame) * 0.06;
-        pathElement.style.strokeDashoffset = `${dashOffset}`;
-      }
-
-      lastFrame = timestamp;
-      animationFrameId = window.requestAnimationFrame(tick);
-    };
-
-    animationFrameId = window.requestAnimationFrame(tick);
+    removeAll(baseOverlays);
+    removeAll(highlightOverlays);
   }
 
   function buildLabel(route, path, isHighlighted) {
-    const labelPosition = midpoint(path);
-    if (!labelPosition) {
+    const position = midpoint(path);
+    if (!position) {
       return null;
     }
 
-    return window.L.marker(labelPosition, {
-      pane: isHighlighted ? highlightPane : labelPane,
-      icon: window.L.divIcon({
-        className: `route-label-icon${isHighlighted ? " route-label-icon--active" : ""}`,
-        html: `<div class="route-label">${formatDistance(route.distance)} | ${formatDuration(route.duration)}</div>`,
-        iconSize: null,
-        iconAnchor: [0, 0],
-      }),
-      interactive: false,
-      keyboard: false,
+    return new window.AMap.Text({
+      position,
+      anchor: "center",
+      zIndex: isHighlighted ? 420 : 320,
+      text: `${formatDistance(route.distance)} | ${formatDuration(route.duration)}`,
+      style: {
+        border: isHighlighted ? "1px solid rgba(255,122,24,0.24)" : "1px solid rgba(47,127,105,0.2)",
+        background: "rgba(255,250,240,0.92)",
+        borderRadius: "999px",
+        padding: "6px 12px",
+        boxShadow: "0 10px 24px rgba(40,30,18,0.12)",
+        color: "#213032",
+        fontWeight: "700",
+        fontSize: "12px",
+        whiteSpace: "nowrap",
+      },
     });
   }
 
@@ -97,16 +70,11 @@ export function createRouteLayer(map, routeCache) {
       return null;
     }
 
-    return window.L.marker(end, {
-      pane: highlightPane,
-      icon: window.L.divIcon({
-        className: "route-arrow-icon",
-        html: `<div class="route-arrow" style="transform: rotate(${endAngle(path)}deg)">➜</div>`,
-        iconSize: null,
-        iconAnchor: [0, 0],
-      }),
-      interactive: false,
-      keyboard: false,
+    return new window.AMap.Marker({
+      position: end,
+      anchor: "center",
+      zIndex: 430,
+      content: `<div class="route-arrow" style="transform: rotate(${endAngle(path)}deg)">➤</div>`,
     });
   }
 
@@ -114,14 +82,17 @@ export function createRouteLayer(map, routeCache) {
     clear();
     const overlays = [];
     const missingSegments = [];
-    let highlightedDashLayer = null;
 
-    for (const segment of day.segments) {
+    day.segments.forEach((segment) => {
       const from = locationsById.get(segment.from);
       const to = locationsById.get(segment.to);
       if (!from || !to) {
-        missingSegments.push({ segmentId: segment.id, label: segment.label, error: "起点或终点缺少坐标数据" });
-        continue;
+        missingSegments.push({
+          segmentId: segment.id,
+          label: segment.label,
+          error: "起点或终点缺少坐标数据",
+        });
+        return;
       }
 
       const cachedRoute = routesBySegmentId.get(segment.id);
@@ -131,59 +102,70 @@ export function createRouteLayer(map, routeCache) {
           label: segment.label,
           error: cachedRoute?.error || "未找到路线缓存",
         });
-        continue;
+        return;
       }
 
-      const path = toLeafletPath(cachedRoute.path || []);
+      const path = toLngLatPath(cachedRoute.path || []);
       if (path.length === 0) {
-        missingSegments.push({ segmentId: segment.id, label: segment.label, error: "缓存缺少路线坐标" });
-        continue;
+        missingSegments.push({
+          segmentId: segment.id,
+          label: segment.label,
+          error: "缓存缺少路线坐标",
+        });
+        return;
       }
 
       const isHighlighted = segment.id === highlightedSegmentId;
-      const baseStroke = window.L.polyline(path, {
-        pane: basePane,
-        color: STATIC_ROUTE_COLOR,
-        opacity: isHighlighted ? 0.28 : 0.65,
-        weight: isHighlighted ? 10 : 7,
+      const baseStroke = new window.AMap.Polyline({
+        path,
+        strokeColor: STATIC_ROUTE_COLOR,
+        strokeWeight: isHighlighted ? 10 : 7,
+        strokeOpacity: isHighlighted ? 0.28 : 0.65,
         lineJoin: "round",
         lineCap: "round",
-        interactive: false,
-        className: `route-line-base${isHighlighted ? " route-line-base--active" : ""}`,
+        zIndex: isHighlighted ? 210 : 200,
       });
-      const label = buildLabel(cachedRoute, path, isHighlighted);
+      baseStroke.setMap(map);
+      baseOverlays.push(baseStroke);
+      overlays.push(baseStroke);
 
-      baseGroup.addLayer(baseStroke);
+      const label = buildLabel(cachedRoute, path, isHighlighted);
       if (label) {
-        (isHighlighted ? highlightGroup : baseGroup).addLayer(label);
+        label.setMap(map);
+        if (isHighlighted) {
+          highlightOverlays.push(label);
+        } else {
+          baseOverlays.push(label);
+        }
+        overlays.push(label);
       }
-      overlays.push(baseStroke, label);
 
       if (isHighlighted) {
-        const dashStroke = window.L.polyline(path, {
-          pane: highlightPane,
-          color: HIGHLIGHT_ROUTE_COLOR,
-          opacity: 1,
-          weight: 6,
-          dashArray: "14 12",
+        const dashStroke = new window.AMap.Polyline({
+          path,
+          strokeColor: HIGHLIGHT_ROUTE_COLOR,
+          strokeWeight: 6,
+          strokeOpacity: 0.96,
+          strokeStyle: "dashed",
+          strokeDasharray: [14, 12],
           lineJoin: "round",
           lineCap: "round",
-          interactive: false,
-          className: "route-line-dash route-line-dash--highlight",
+          showDir: true,
+          zIndex: 410,
         });
-        const arrow = buildEndpointArrow(path);
-        highlightGroup.addLayer(dashStroke);
-        if (arrow) {
-          highlightGroup.addLayer(arrow);
-        }
-        overlays.push(dashStroke, arrow);
-        highlightedDashLayer = dashStroke;
-      }
-    }
+        dashStroke.setMap(map);
 
-    if (highlightedDashLayer) {
-      startDashAnimation(highlightedDashLayer);
-    }
+        const arrow = buildEndpointArrow(path);
+        if (arrow) {
+          arrow.setMap(map);
+          highlightOverlays.push(arrow);
+          overlays.push(arrow);
+        }
+
+        highlightOverlays.push(dashStroke);
+        overlays.push(dashStroke);
+      }
+    });
 
     return { overlays: overlays.filter(Boolean), missingSegments };
   }
