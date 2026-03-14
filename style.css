@@ -306,6 +306,12 @@ body {
   color: #b45500;
 }
 
+.action-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .map-stage {
   position: relative;
   padding: 18px;
@@ -616,6 +622,112 @@ path.route-line-dash {
 .guide-panel__body p {
   color: var(--muted);
   line-height: 1.75;
+}
+
+.guide-content__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.guide-richtext {
+  color: var(--muted);
+}
+
+.guide-richtext h1,
+.guide-richtext h2,
+.guide-richtext h3,
+.guide-richtext h4,
+.guide-richtext h5 {
+  margin: 18px 0 8px;
+  color: var(--ink);
+  font-family: var(--font-heading);
+}
+
+.guide-richtext p {
+  margin: 0 0 12px;
+  line-height: 1.75;
+}
+
+.guide-richtext ul,
+.guide-richtext ol {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+
+.guide-richtext li {
+  margin-bottom: 6px;
+}
+
+.guide-richtext a {
+  color: var(--jade);
+  text-decoration: underline;
+}
+
+.guide-richtext code {
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: rgba(33, 48, 50, 0.08);
+  color: #122326;
+}
+
+.guide-image {
+  margin: 14px 0;
+}
+
+.guide-image img {
+  width: 100%;
+  border-radius: 14px;
+  display: block;
+}
+
+.guide-editor__label {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  font-size: 0.86rem;
+  color: #304749;
+}
+
+.guide-editor__textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  border: 1px solid rgba(80, 68, 48, 0.18);
+  border-radius: 12px;
+  padding: 12px;
+  font: 500 0.95rem/1.6 var(--font-body);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.guide-editor__input {
+  width: 100%;
+  border: 1px solid rgba(80, 68, 48, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: 500 0.92rem/1.4 var(--font-body);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.guide-editor__hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.guide-editor__error {
+  margin: 8px 0 0;
+  color: #a22f17;
+  font-size: 0.86rem;
+}
+
+.guide-editor__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 @media (max-width: 960px) {

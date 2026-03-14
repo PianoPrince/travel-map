@@ -1,8 +1,7 @@
-import { loadTripData } from "./data-loader.js";
+﻿import { loadTripData } from "./data-loader.js";
 import {
   buildLocationMeta,
   escapeHtml,
-  formatMultilineText,
   formatTimeToMinute,
   ROUTE_CACHE_NOTICE,
   summarizeDay,
@@ -17,8 +16,11 @@ import {
   fitMapToOverlays,
   setMapMessage,
 } from "./map-view.js";
+import { getGuideApiBase, fetchGuideOverrides, saveGuideOverride } from "./guide-api.js";
+import { markdownToHtml, markdownToPlainText } from "./guide-markdown.js";
 
 const MOBILE_MEDIA_QUERY = "(max-width: 960px)";
+const GUIDE_EDIT_TOKEN_KEY = "travel_guide_edit_token";
 const mobileMediaQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
 
 const refs = {
@@ -62,8 +64,16 @@ const state = {
   showFoods: false,
   highlightedSegmentId: null,
   openGuideId: null,
+  openGuideEntry: null,
   drawerState: "peek",
   drawerMode: "itinerary",
+  guideApiBase: "",
+  guideOverrides: new Map(),
+  editingGuideKey: null,
+  editingGuideDraft: "",
+  editingError: "",
+  savingGuide: false,
+  editToken: window.localStorage.getItem(GUIDE_EDIT_TOKEN_KEY) || "",
 };
 
 function isMobileViewport() {
@@ -114,12 +124,37 @@ function buildDayView(dayId = activeDayId) {
   };
 }
 
-function buildGuidePreview(entry) {
-  return String(entry.guide_text || "").trim();
+function buildGuideKey(dayId, mode, locationId) {
+  return `${dayId}:${mode}:${locationId}`;
 }
 
-function renderGuideBody(entry) {
-  return `<p>${formatMultilineText(entry.guide_text || "暂无攻略说明。")}</p>`;
+function applyGuideOverride(entry) {
+  if (!entry?.guide_key) {
+    return entry;
+  }
+
+  const override = state.guideOverrides.get(entry.guide_key);
+  if (!override) {
+    return {
+      ...entry,
+      guide_markdown: entry.guide_markdown || entry.guide_text || "",
+      guide_updated_at: entry.guide_updated_at || "",
+    };
+  }
+
+  return {
+    ...entry,
+    guide_markdown: String(override.markdown || ""),
+    guide_updated_at: String(override.updatedAt || ""),
+  };
+}
+
+function resolveGuideText(entry) {
+  return String(entry?.guide_markdown || entry?.guide_text || "");
+}
+
+function buildGuidePreview(entry) {
+  return markdownToPlainText(resolveGuideText(entry));
 }
 
 function buildGuideMeta(entry, location) {
@@ -142,12 +177,82 @@ function buildFallbackGuideEntry(location, dayView, mode = "core") {
     location_id: location.id,
     visit_window: mode === "food" ? "美食补充" : dayView.day.title,
     guide_text: location.description || location.notes || "暂无攻略说明。",
+    guide_mode: mode,
+    day_id: dayView.day.id,
+    guide_key: buildGuideKey(dayView.day.id, mode, location.id),
   };
 }
 
 function resolveGuideEntryForLocation(dayView, location, mode = "core") {
   const matchedPoi = dayView.day.poi_entries.find((entry) => entry.location_id === location.id);
-  return matchedPoi ? { ...matchedPoi, entry_type: "poi" } : buildFallbackGuideEntry(location, dayView, mode);
+  const baseEntry = matchedPoi
+    ? {
+        ...matchedPoi,
+        entry_type: "poi",
+        guide_mode: mode,
+        day_id: dayView.day.id,
+        guide_key: buildGuideKey(dayView.day.id, mode, location.id),
+      }
+    : buildFallbackGuideEntry(location, dayView, mode);
+
+  return applyGuideOverride(baseEntry);
+}
+
+function formatUpdatedAt(value = "") {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function renderGuideEditor(entry) {
+  const saving = state.savingGuide;
+  const updatedAt = formatUpdatedAt(entry.guide_updated_at);
+  const canSave = Boolean(state.guideApiBase);
+
+  return `
+    <div class="guide-editor" data-guide-editor-key="${escapeHtml(entry.guide_key || "")}">
+      <label class="guide-editor__label" for="guideEditorMarkdown">攻略内容 (Markdown)</label>
+      <textarea id="guideEditorMarkdown" class="guide-editor__textarea" data-guide-field="markdown" ${saving ? "disabled" : ""}>${escapeHtml(state.editingGuideDraft)}</textarea>
+      <label class="guide-editor__label" for="guideEditorToken">编辑密码</label>
+      <input id="guideEditorToken" class="guide-editor__input" data-guide-field="token" type="password" placeholder="输入编辑密码" value="${escapeHtml(state.editToken)}" ${saving ? "disabled" : ""}>
+      <p class="guide-editor__hint">支持标题、列表和图片语法，例如：![](./assets/images/example.png)</p>
+      ${updatedAt ? `<p class="guide-editor__hint">最近更新：${escapeHtml(updatedAt)}</p>` : ""}
+      ${state.editingError ? `<p class="guide-editor__error">${escapeHtml(state.editingError)}</p>` : ""}
+      <div class="guide-editor__actions">
+        <button type="button" class="action-chip" data-guide-action="cancel-edit" ${saving ? "disabled" : ""}>取消</button>
+        <button type="button" class="action-chip action-chip--active" data-guide-action="save-guide" ${!canSave || saving ? "disabled" : ""}>${saving ? "保存中..." : "保存"}</button>
+      </div>
+      ${!canSave ? "<p class=\"guide-editor__error\">未配置共享保存服务，请先配置 guideApiBase。</p>" : ""}
+    </div>
+  `;
+}
+
+function renderGuideViewer(entry) {
+  const markdown = resolveGuideText(entry);
+  const html = markdownToHtml(markdown);
+  const updatedAt = formatUpdatedAt(entry.guide_updated_at);
+
+  return `
+    <div class="guide-content">
+      <div class="guide-content__actions">
+        ${state.guideApiBase ? "<button type=\"button\" class=\"action-chip\" data-guide-action=\"start-edit\">编辑攻略</button>" : ""}
+        ${updatedAt ? `<span class="badge">更新于 ${escapeHtml(updatedAt)}</span>` : ""}
+      </div>
+      <div class="guide-richtext">${html}</div>
+    </div>
+  `;
+}
+
+function renderGuideBody(entry) {
+  if (state.editingGuideKey && state.editingGuideKey === entry.guide_key) {
+    return renderGuideEditor(entry);
+  }
+  return renderGuideViewer(entry);
 }
 
 function applyDrawerState() {
@@ -178,26 +283,16 @@ function applyDrawerState() {
   refs.drawerToggle.textContent = showingGuide ? "收起攻略" : drawerLabels[state.drawerState];
 }
 
-function closeGuidePanel() {
-  refs.guidePanel.hidden = true;
-  refs.guidePanelTitle.textContent = "";
-  refs.guidePanelMeta.textContent = "";
-  refs.guidePanelBody.innerHTML = "";
-  refs.mobileGuideTitle.textContent = "";
-  refs.mobileGuideMeta.textContent = "";
-  refs.mobileGuideBody.innerHTML = "";
-  state.openGuideId = null;
-  state.drawerMode = "itinerary";
-  applyDrawerState();
-}
+function renderOpenGuidePanel() {
+  if (!state.openGuideEntry) {
+    return;
+  }
 
-function openGuidePanel(entry) {
+  const entry = state.openGuideEntry;
   const location = entry.location_id ? locationsById.get(entry.location_id) : null;
   const title = entry.title || location?.name || "攻略详情";
   const meta = buildGuideMeta(entry, location);
   const body = renderGuideBody(entry);
-
-  state.openGuideId = entry.id;
 
   if (isMobileViewport()) {
     refs.mobileGuideTitle.textContent = title;
@@ -215,6 +310,35 @@ function openGuidePanel(entry) {
   refs.guidePanelBody.innerHTML = body;
   refs.guidePanel.hidden = false;
   applyDrawerState();
+}
+
+function resetEditingState() {
+  state.editingGuideKey = null;
+  state.editingGuideDraft = "";
+  state.editingError = "";
+  state.savingGuide = false;
+}
+
+function closeGuidePanel() {
+  refs.guidePanel.hidden = true;
+  refs.guidePanelTitle.textContent = "";
+  refs.guidePanelMeta.textContent = "";
+  refs.guidePanelBody.innerHTML = "";
+  refs.mobileGuideTitle.textContent = "";
+  refs.mobileGuideMeta.textContent = "";
+  refs.mobileGuideBody.innerHTML = "";
+  state.openGuideId = null;
+  state.openGuideEntry = null;
+  state.drawerMode = "itinerary";
+  resetEditingState();
+  applyDrawerState();
+}
+
+function openGuidePanel(entry) {
+  state.openGuideId = entry.id;
+  state.openGuideEntry = entry;
+  resetEditingState();
+  renderOpenGuidePanel();
 }
 
 function toggleGuidePanel(entry) {
@@ -347,6 +471,23 @@ function buildFoodLocations(dayView) {
   return [...locationsById.values()].filter((location) => location.category === "restaurant" && !resolvedIds.has(location.id));
 }
 
+function refreshOpenGuideEntry(dayView) {
+  if (!state.openGuideEntry || !dayView) {
+    return;
+  }
+
+  const location = state.openGuideEntry.location_id ? locationsById.get(state.openGuideEntry.location_id) : null;
+  if (!location) {
+    return;
+  }
+
+  state.openGuideEntry = resolveGuideEntryForLocation(
+    dayView,
+    location,
+    state.openGuideEntry.guide_mode || "core",
+  );
+}
+
 function renderMap(dayView) {
   if (!map) {
     setMapMessage(refs.mapContainer, refs.mapOverlayMessage, "<strong>地图未初始化</strong><br>Leaflet 实例尚未创建，请刷新页面。");
@@ -358,10 +499,14 @@ function renderMap(dayView) {
   const coreMarkers = markerLayer.render(dayView.resolvedPoints, {
     getMarkerContext: (location) => {
       const guideEntry = resolveGuideEntryForLocation(dayView, location, "core");
+      const preview = truncateText(markdownToPlainText(resolveGuideText(guideEntry)), 110)
+        || location.description
+        || location.notes
+        || "暂无补充说明。";
       return {
         title: guideEntry.title || location.name,
         subtitle: `${dayView.day.title} · ${buildLocationMeta(location)}`,
-        guideText: guideEntry.guide_text || location.description || location.notes,
+        guideText: preview,
         badges: [guideEntry.visit_window].filter(Boolean),
         guideToggle: {
           locationId: location.id,
@@ -377,10 +522,14 @@ function renderMap(dayView) {
         markerClass: "travel-marker-icon--food",
         getMarkerContext: (location) => {
           const guideEntry = resolveGuideEntryForLocation(dayView, location, "food");
+          const preview = truncateText(markdownToPlainText(resolveGuideText(guideEntry)), 110)
+            || location.description
+            || location.notes
+            || "暂无补充说明。";
           return {
             title: location.name,
             subtitle: `美食补充 · ${buildLocationMeta(location)}`,
-            guideText: guideEntry.guide_text || location.description || location.notes,
+            guideText: preview,
             badges: [guideEntry.visit_window].filter(Boolean),
             guideToggle: {
               locationId: location.id,
@@ -429,6 +578,11 @@ async function renderActiveDay() {
     refs.mapOverlayMessage.hidden = false;
     refs.mapOverlayMessage.innerHTML = `<strong>路线缓存渲染失败</strong><br>${escapeHtml(error.message)}<br>${escapeHtml(ROUTE_CACHE_NOTICE)}`;
   }
+
+  refreshOpenGuideEntry(dayView);
+  if (state.openGuideEntry) {
+    renderOpenGuidePanel();
+  }
 }
 
 function handleViewportChange() {
@@ -440,6 +594,108 @@ function handleViewportChange() {
   applyDrawerState();
   if (itinerary) {
     renderActiveDay();
+  }
+}
+
+function readEditorFields() {
+  const container = isMobileViewport() ? refs.mobileGuideBody : refs.guidePanelBody;
+  const markdownField = container.querySelector("[data-guide-field='markdown']");
+  const tokenField = container.querySelector("[data-guide-field='token']");
+
+  return {
+    markdown: markdownField ? markdownField.value : state.editingGuideDraft,
+    token: tokenField ? tokenField.value.trim() : state.editToken,
+  };
+}
+
+function startGuideEditing() {
+  if (!state.openGuideEntry?.guide_key) {
+    return;
+  }
+  state.editingGuideKey = state.openGuideEntry.guide_key;
+  state.editingGuideDraft = resolveGuideText(state.openGuideEntry);
+  state.editingError = "";
+  state.savingGuide = false;
+  renderOpenGuidePanel();
+}
+
+function cancelGuideEditing() {
+  resetEditingState();
+  renderOpenGuidePanel();
+}
+
+async function saveGuideEditing() {
+  if (!state.openGuideEntry || !state.editingGuideKey) {
+    return;
+  }
+
+  const { markdown, token } = readEditorFields();
+  state.editingGuideDraft = markdown;
+
+  if (!state.guideApiBase) {
+    state.editingError = "未配置共享保存服务。";
+    renderOpenGuidePanel();
+    return;
+  }
+
+  if (!token) {
+    state.editingError = "请输入编辑密码。";
+    renderOpenGuidePanel();
+    return;
+  }
+
+  state.savingGuide = true;
+  state.editingError = "";
+  renderOpenGuidePanel();
+
+  try {
+    const saved = await saveGuideOverride({
+      apiBase: state.guideApiBase,
+      tripId: itinerary.trip.id,
+      guideKey: state.editingGuideKey,
+      markdown,
+      editToken: token,
+    });
+
+    state.guideOverrides.set(state.editingGuideKey, saved);
+    state.editToken = token;
+    window.localStorage.setItem(GUIDE_EDIT_TOKEN_KEY, token);
+
+    if (state.openGuideEntry.guide_key === state.editingGuideKey) {
+      state.openGuideEntry = applyGuideOverride({
+        ...state.openGuideEntry,
+        guide_markdown: markdown,
+      });
+    }
+
+    resetEditingState();
+    await renderActiveDay();
+  } catch (error) {
+    state.savingGuide = false;
+    state.editingError = error.message || "保存失败，请稍后重试。";
+    renderOpenGuidePanel();
+  }
+}
+
+async function handleGuideActionClick(event) {
+  const actionElement = event.target.closest("[data-guide-action]");
+  if (!actionElement) {
+    return;
+  }
+
+  const action = actionElement.dataset.guideAction;
+  if (action === "start-edit") {
+    startGuideEditing();
+    return;
+  }
+
+  if (action === "cancel-edit") {
+    cancelGuideEditing();
+    return;
+  }
+
+  if (action === "save-guide") {
+    await saveGuideEditing();
   }
 }
 
@@ -456,7 +712,8 @@ async function init() {
       return;
     }
 
-    toggleGuidePanel(resolveGuideEntryForLocation(dayView, location, trigger.dataset.guideMode || "core"));
+    const entry = resolveGuideEntryForLocation(dayView, location, trigger.dataset.guideMode || "core");
+    toggleGuidePanel(entry);
     await renderActiveDay();
   });
 
@@ -477,6 +734,9 @@ async function init() {
     renderActiveDay();
   });
 
+  refs.guidePanelBody.addEventListener("click", handleGuideActionClick);
+  refs.mobileGuideBody.addEventListener("click", handleGuideActionClick);
+
   if (mobileMediaQuery.addEventListener) {
     mobileMediaQuery.addEventListener("change", handleViewportChange);
   } else if (mobileMediaQuery.addListener) {
@@ -489,6 +749,19 @@ async function init() {
     activeDayId = itinerary.days[0]?.id ?? null;
     locationsById = data.locationsById;
     icons = data.icons;
+
+    state.guideApiBase = getGuideApiBase();
+    if (state.guideApiBase) {
+      try {
+        const overrides = await fetchGuideOverrides({
+          apiBase: state.guideApiBase,
+          tripId: itinerary.trip.id,
+        });
+        state.guideOverrides = new Map(Object.entries(overrides));
+      } catch (overrideError) {
+        console.warn("Guide overrides unavailable:", overrideError.message);
+      }
+    }
 
     map = createMap(refs.mapContainer, itinerary.trip);
     attachMapControls(map);

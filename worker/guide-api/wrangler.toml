@@ -1,0 +1,10 @@
+﻿name = "travel-guide-api"
+main = "src/index.js"
+compatibility_date = "2026-03-14"
+
+[[kv_namespaces]]
+binding = "GUIDE_KV"
+id = "c451161c62fd4fb2938ac8670d876dff"
+
+[vars]
+ALLOWED_ORIGINS = "https://pianoprince.github.io,https://pianoprince.github.io/travel-map,http://127.0.0.1:8000,http://localhost:8000"
