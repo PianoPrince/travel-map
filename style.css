@@ -422,6 +422,14 @@ body {
   background: rgba(255, 255, 255, 0.18);
 }
 
+.marker-pin__label {
+  display: block;
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .travel-info-window {
   width: min(320px, calc(100vw - 48px));
   border-radius: 24px;
@@ -474,7 +482,49 @@ body {
 }
 
 .amap-marker-chip--food .marker-pin {
-  opacity: 0.88;
+  opacity: 0.74;
+  filter: saturate(0.72);
+  box-shadow: 0 8px 18px rgba(30, 23, 13, 0.16);
+}
+
+.amap-marker-chip--food .marker-pin__label {
+  max-width: 88px;
+  font-size: 12px;
+}
+
+.amap-marker-chip--compact .marker-pin {
+  gap: 6px;
+  padding: 5px 8px;
+  min-width: 0;
+}
+
+.amap-marker-chip--compact .marker-pin__icon {
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+
+.amap-marker-chip--compact .marker-pin__label {
+  max-width: 72px;
+  font-size: 11px;
+}
+
+.cluster-pin {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: rgba(47, 127, 105, 0.86);
+  color: #fffaf1;
+  box-shadow: 0 12px 26px rgba(30, 23, 13, 0.22);
+}
+
+.cluster-pin__count {
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .route-arrow {
@@ -488,6 +538,31 @@ body {
   font-size: 12px;
   font-weight: 700;
   box-shadow: 0 8px 18px rgba(180, 85, 0, 0.24);
+}
+
+.route-endpoint {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px 999px 999px 4px;
+  color: #fffaf1;
+  font-size: 14px;
+  font-weight: 700;
+  transform: rotate(-45deg);
+  box-shadow: 0 12px 22px rgba(30, 23, 13, 0.24);
+}
+
+.route-endpoint span {
+  transform: rotate(45deg);
+}
+
+.route-endpoint--start {
+  background: linear-gradient(135deg, #2f7f69, #255e5d);
+}
+
+.route-endpoint--end {
+  background: linear-gradient(135deg, #ff7a18, #ff9f1c);
 }
 
 .amap-logo,

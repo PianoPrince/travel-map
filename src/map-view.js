@@ -35,7 +35,7 @@ function loadAMapScript() {
   }
 
   ensureSecurityConfig();
-  const scriptSrc = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&plugin=AMap.Scale,AMap.ToolBar`;
+  const scriptSrc = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&plugin=AMap.Scale,AMap.ToolBar,AMap.MarkerCluster`;
   amapScriptPromise = new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = scriptSrc;

@@ -17,7 +17,7 @@ import {
   setMapMessage,
 } from "./map-view.js";
 import { getGuideApiBase, fetchGuideOverrides, saveGuideOverride } from "./guide-api.js";
-import { markdownToHtml, markdownToPlainText } from "./guide-markdown.js";
+import { markdownToHtml, markdownToSummary } from "./guide-markdown.js";
 
 const MOBILE_MEDIA_QUERY = "(max-width: 960px)";
 const GUIDE_EDIT_TOKEN_KEY = "travel_guide_edit_token";
@@ -154,7 +154,7 @@ function resolveGuideText(entry) {
 }
 
 function buildGuidePreview(entry) {
-  return markdownToPlainText(resolveGuideText(entry));
+  return markdownToSummary(resolveGuideText(entry));
 }
 
 function buildGuideMeta(entry, location) {
@@ -461,7 +461,10 @@ function renderTimeline(dayView) {
 
 function buildFoodLocations(dayView) {
   const resolvedIds = new Set(dayView.resolvedPoints.map((item) => item.id));
-  return [...locationsById.values()].filter((location) => location.category === "restaurant" && !resolvedIds.has(location.id));
+  return [...locationsById.values()].filter((location) => (
+    location.category === "restaurant"
+    && !resolvedIds.has(location.id)
+  ));
 }
 
 function refreshOpenGuideEntry(dayView) {
@@ -492,7 +495,7 @@ function renderMap(dayView) {
   const coreMarkers = markerLayer.render(dayView.resolvedPoints, {
     getMarkerContext: (location) => {
       const guideEntry = resolveGuideEntryForLocation(dayView, location, "core");
-      const preview = truncateText(markdownToPlainText(resolveGuideText(guideEntry)), 110)
+      const preview = truncateText(buildGuidePreview(guideEntry), 72)
         || location.description
         || location.notes
         || "暂无补充说明。";
@@ -512,10 +515,13 @@ function renderMap(dayView) {
 
   const foodMarkers = state.showFoods
     ? foodLayer.render(buildFoodLocations(dayView), {
-        markerClass: "travel-marker-icon--food",
+        cluster: true,
+        showLabel: true,
+        labelMaxLength: 6,
+        markerClass: "amap-marker-chip--food",
         getMarkerContext: (location) => {
           const guideEntry = resolveGuideEntryForLocation(dayView, location, "food");
-          const preview = truncateText(markdownToPlainText(resolveGuideText(guideEntry)), 110)
+          const preview = truncateText(buildGuidePreview(guideEntry), 60)
             || location.description
             || location.notes
             || "暂无补充说明。";
@@ -535,7 +541,7 @@ function renderMap(dayView) {
     : (foodLayer.clear(), []);
 
   const result = routeLayer.render(dayView.day, locationsById, state.highlightedSegmentId);
-  fitMapToOverlays(map, [...coreMarkers, ...foodMarkers, ...result.overlays], itinerary.trip);
+  fitMapToOverlays(map, [...coreMarkers, ...result.overlays], itinerary.trip);
   return result;
 }
 

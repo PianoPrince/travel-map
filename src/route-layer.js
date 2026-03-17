@@ -24,6 +24,20 @@ function endAngle(path) {
   return (Math.atan2(endLat - prevLat, endLng - prevLng) * 180) / Math.PI;
 }
 
+function buildEndpointPin(position, kind) {
+  if (!position) {
+    return null;
+  }
+
+  const label = kind === "start" ? "起" : "终";
+  return new window.AMap.Marker({
+    position,
+    anchor: "bottom-center",
+    zIndex: 440,
+    content: `<div class="route-endpoint route-endpoint--${kind}"><span>${label}</span></div>`,
+  });
+}
+
 export function createRouteLayer(map, routeCache) {
   const routesBySegmentId = new Map(Object.entries(routeCache?.routes ?? {}));
   const baseOverlays = [];
@@ -160,6 +174,20 @@ export function createRouteLayer(map, routeCache) {
           arrow.setMap(map);
           highlightOverlays.push(arrow);
           overlays.push(arrow);
+        }
+
+        const startPin = buildEndpointPin(path[0], "start");
+        if (startPin) {
+          startPin.setMap(map);
+          highlightOverlays.push(startPin);
+          overlays.push(startPin);
+        }
+
+        const endPin = buildEndpointPin(path[path.length - 1], "end");
+        if (endPin) {
+          endPin.setMap(map);
+          highlightOverlays.push(endPin);
+          overlays.push(endPin);
         }
 
         highlightOverlays.push(dashStroke);

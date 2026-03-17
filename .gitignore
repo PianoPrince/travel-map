@@ -6,3 +6,4 @@ __pycache__/
 .idea/
 .vscode/
 *.log
+data/guide_overrides.*.json

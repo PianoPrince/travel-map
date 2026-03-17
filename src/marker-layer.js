@@ -6,6 +6,9 @@ import {
   getPhotoUrl,
 } from "./formatters.js";
 
+const FOOD_CLUSTER_GRID_SIZE = 80;
+const FOOD_CLUSTER_MAX_ZOOM = 14;
+
 function toLngLat(location) {
   if (!location || !Number.isFinite(location.lng) || !Number.isFinite(location.lat)) {
     return null;
@@ -49,13 +52,33 @@ function buildInfoWindowHtml({ location, title, subtitle, guideText, badges = []
   `;
 }
 
-function buildMarkerContent(icon, label, extraClass = "") {
+function resolveIcon(icons, location) {
+  return icons[location.icon_key] || icons[location.category] || icons.default;
+}
+
+function truncateLabel(label = "", maxLength = 9) {
+  const safe = String(label || "").trim();
+  if (!safe) {
+    return "";
+  }
+  return safe.length > maxLength ? `${safe.slice(0, maxLength)}...` : safe;
+}
+
+function buildMarkerContent(icon, label, extraClass = "", showLabel = true) {
   return `
     <div class="amap-marker-chip ${escapeHtml(extraClass)}">
       <div class="marker-pin" style="background:${icon.background};">
         <span class="marker-pin__icon">${icon.emoji}</span>
-        <span>${escapeHtml(label)}</span>
+        ${showLabel ? `<span class="marker-pin__label">${escapeHtml(label)}</span>` : ""}
       </div>
+    </div>
+  `;
+}
+
+function buildClusterContent(count) {
+  return `
+    <div class="cluster-pin">
+      <span class="cluster-pin__count">${escapeHtml(String(count))}</span>
     </div>
   `;
 }
@@ -68,17 +91,27 @@ export function createMarkerLayer(map, icons) {
     autoMove: true,
     offset: new window.AMap.Pixel(0, -30),
   });
+  let clusterer = null;
 
   function clear() {
     overlays.forEach((overlay) => overlay.setMap(null));
     overlays.length = 0;
     markerByLocationId.clear();
+    if (clusterer) {
+      if (typeof clusterer.setData === "function") {
+        clusterer.setData([]);
+      }
+      if (typeof clusterer.setMap === "function") {
+        clusterer.setMap(null);
+      }
+      clusterer = null;
+    }
     infoWindow.close();
   }
 
-  function buildMarker(location, extraClass = "") {
-    const icon = icons[location.icon_key] || icons[location.category] || icons.default;
-    const label = location.name.length > 9 ? `${location.name.slice(0, 9)}...` : location.name;
+  function buildMarker(location, extraClass = "", showLabel = true, labelMaxLength = 9) {
+    const icon = resolveIcon(icons, location);
+    const label = truncateLabel(location.name, labelMaxLength);
     const position = toLngLat(location);
     if (!position) {
       return null;
@@ -87,7 +120,7 @@ export function createMarkerLayer(map, icons) {
     return new window.AMap.Marker({
       position,
       anchor: "bottom-center",
-      content: buildMarkerContent(icon, label, extraClass),
+      content: buildMarkerContent(icon, label, extraClass, showLabel),
       offset: new window.AMap.Pixel(0, 0),
       zIndex: 120,
     });
@@ -114,14 +147,131 @@ export function createMarkerLayer(map, icons) {
     infoWindow.open(map, marker.__popupPosition);
   }
 
+  function openPopupForLocation(location, context = {}) {
+    const position = toLngLat(location);
+    if (!position) {
+      return;
+    }
+    const popupHtml = buildInfoWindowHtml({
+      location,
+      title: context.title || location.name,
+      subtitle: context.subtitle || getCategoryLabel(location.category),
+      guideText: context.guideText || location.description || location.notes,
+      badges: context.badges || [],
+      guideToggle: context.guideToggle || null,
+    });
+    infoWindow.setContent(popupHtml);
+    infoWindow.open(map, position);
+  }
+
+  function renderClustered(locations, context = {}) {
+    const getMarkerContext = context.getMarkerContext || (() => ({}));
+    const markerClass = context.markerClass || "";
+    const compactClass = [markerClass, "amap-marker-chip--compact"].filter(Boolean).join(" ");
+    const showLabel = context.showLabel !== false;
+    const labelMaxLength = context.labelMaxLength || 9;
+    const contextByLocationId = new Map();
+    const contextByPositionKey = new Map();
+    const points = [];
+
+    locations.forEach((location) => {
+      const position = toLngLat(location);
+      if (!position) {
+        return;
+      }
+
+      const markerContext = {
+        subtitle: context.subtitle || getCategoryLabel(location.category),
+        ...getMarkerContext(location),
+      };
+      const positionKey = position.join(",");
+      contextByLocationId.set(location.id, { location, markerContext });
+      contextByPositionKey.set(positionKey, { location, markerContext });
+      points.push({
+        lnglat: position,
+        extData: {
+          locationId: location.id,
+          positionKey,
+        },
+      });
+    });
+
+    if (points.length === 0) {
+      return [];
+    }
+
+    if (!window.AMap.MarkerCluster) {
+      return render(locations, { ...context, cluster: false, showLabel, labelMaxLength });
+    }
+
+    clusterer = new window.AMap.MarkerCluster(map, points, {
+      gridSize: FOOD_CLUSTER_GRID_SIZE,
+      maxZoom: FOOD_CLUSTER_MAX_ZOOM,
+      averageCenter: true,
+      renderClusterMarker: (contextValue) => {
+        const marker = contextValue.marker || contextValue.clusterMarker;
+        const count = contextValue.count || contextValue.markers?.length || 0;
+        if (!marker) {
+          return;
+        }
+        marker.setContent(buildClusterContent(count));
+        marker.setAnchor("center");
+        marker.setOffset(new window.AMap.Pixel(0, 0));
+      },
+      renderMarker: (contextValue) => {
+        const marker = contextValue.marker;
+        if (!marker) {
+          return;
+        }
+
+        const extData = marker.getExtData?.() || {};
+        const markerPosition = marker.getPosition?.();
+        const fallbackKey = markerPosition?.toArray ? markerPosition.toArray().join(",") : "";
+        const resolved = (
+          (extData.locationId && contextByLocationId.get(extData.locationId))
+          || (extData.positionKey && contextByPositionKey.get(extData.positionKey))
+          || (fallbackKey && contextByPositionKey.get(fallbackKey))
+        );
+
+        if (!resolved) {
+          return;
+        }
+
+        const { location, markerContext } = resolved;
+        const icon = resolveIcon(icons, location);
+        marker.setContent(
+          buildMarkerContent(
+            icon,
+            truncateLabel(location.name, labelMaxLength),
+            compactClass,
+            showLabel,
+          ),
+        );
+        marker.setAnchor("bottom-center");
+        marker.setOffset(new window.AMap.Pixel(0, 0));
+        bindPopup(marker, location, markerContext);
+        marker.on("click", () => openPopup(marker));
+        markerByLocationId.set(location.id, marker);
+      },
+    });
+
+    return [];
+  }
+
   function render(locations, context = {}) {
     clear();
     const getMarkerContext = context.getMarkerContext || (() => ({}));
     const markerClass = context.markerClass || "";
+    const showLabel = context.showLabel !== false;
+    const labelMaxLength = context.labelMaxLength || 9;
     const rendered = [];
 
+    if (context.cluster) {
+      return renderClustered(locations, context);
+    }
+
     locations.forEach((location) => {
-      const marker = buildMarker(location, markerClass);
+      const marker = buildMarker(location, markerClass, showLabel, labelMaxLength);
       if (!marker) {
         return;
       }
@@ -144,16 +294,21 @@ export function createMarkerLayer(map, icons) {
   }
 
   function focusLocation(locationId, location, context = {}) {
-    const marker = markerByLocationId.get(locationId);
     const position = toLngLat(location);
-    if (!marker || !position) {
+    if (!position) {
       return false;
     }
 
-    bindPopup(marker, location, context);
     const nextZoom = Math.max(13, map.getZoom() || 13);
     map.setZoomAndCenter(nextZoom, position);
-    openPopup(marker);
+    const marker = markerByLocationId.get(locationId);
+    if (marker) {
+      bindPopup(marker, location, context);
+      openPopup(marker);
+      return true;
+    }
+
+    openPopupForLocation(location, context);
     return true;
   }
 

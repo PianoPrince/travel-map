@@ -8,6 +8,7 @@ const LINK = /\[([^\]]+)\]\(([^)]+)\)/g;
 const BOLD = /\*\*([^*]+)\*\*/g;
 const ITALIC = /\*([^*]+)\*/g;
 const CODE = /`([^`]+)`/g;
+const HTML_BREAK = /<br\s*\/?>/gi;
 
 function normalize(text = "") {
   return String(text || "").replace(/\r\n/g, "\n");
@@ -77,6 +78,41 @@ function isTableStart(lines, index) {
   }
   const separator = lines[index + 1];
   return isTableSeparator(separator, header.length);
+}
+
+function normalizeTimeRanges(text = "") {
+  return String(text).replace(
+    /(\d{1,2}:\d{2})\s*(?:[-~—–]|至|到)?\s*(?=\d{1,2}:\d{2})/g,
+    "$1 - ",
+  );
+}
+
+function stripInlineMarkdown(raw = "") {
+  return String(raw)
+    .replace(HTML_BREAK, " / ")
+    .replace(/!\[[^\]]*\]\(([^)]+)\)/g, "")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(CODE, "$1")
+    .replace(BOLD, "$1")
+    .replace(ITALIC, "$1");
+}
+
+function cleanTextFragment(raw = "") {
+  return normalizeTimeRanges(stripInlineMarkdown(raw))
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^[-*+]\s+/, "")
+    .replace(/^\d+\.\s+/, "")
+    .replace(/\|/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tableRowToText(line = "") {
+  const cells = parseTableRow(line);
+  if (!cells || isTableSeparator(line, cells.length)) {
+    return "";
+  }
+  return cells.map((cell) => cleanTextFragment(cell)).filter(Boolean).join(" · ");
 }
 
 export function markdownToHtml(markdown = "") {
@@ -189,11 +225,52 @@ export function markdownToPlainText(markdown = "") {
     return "";
   }
 
-  return normalized
-    .replace(/!\[[^\]]*\]\(([^)]+)\)/g, "")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/[#*_`>-]/g, "")
-    .replace(/\n+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const parts = [];
+  for (const rawLine of normalized.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || IMAGE_SYNTAX.test(line)) {
+      continue;
+    }
+
+    const tableText = tableRowToText(line);
+    if (tableText) {
+      parts.push(tableText);
+      continue;
+    }
+
+    const cleaned = cleanTextFragment(line);
+    if (cleaned) {
+      parts.push(cleaned);
+    }
+  }
+
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+export function markdownToSummary(markdown = "") {
+  const normalized = normalize(markdown);
+  if (!normalized.trim()) {
+    return "";
+  }
+
+  let fallbackTableText = "";
+  for (const rawLine of normalized.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || IMAGE_SYNTAX.test(line)) {
+      continue;
+    }
+
+    const tableText = tableRowToText(line);
+    if (tableText) {
+      fallbackTableText ||= tableText;
+      continue;
+    }
+
+    const cleaned = cleanTextFragment(line);
+    if (cleaned) {
+      return cleaned;
+    }
+  }
+
+  return fallbackTableText;
 }
